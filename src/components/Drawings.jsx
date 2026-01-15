@@ -503,33 +503,45 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
     loadMarkups();
   }, [sheet]);
 
-  const renderPage = async (num, pdf = pdfDocRef.current) => {
-    if (!pdf || !pdfCanvasRef.current) return;
-    
-    try {
-      const page = await pdf.getPage(num);
-      const canvas = pdfCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      const scale = zoom * 1.5;
-      const viewport = page.getViewport({ scale });
-      
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      
-      // Sync markup canvas size
-      if (markupCanvasRef.current) {
-        markupCanvasRef.current.width = viewport.width;
-        markupCanvasRef.current.height = viewport.height;
+const renderPage = async (num, pdf = pdfDocRef.current) => {
+  if (!pdf) return;
+  
+  // Wait for canvas to be available
+  const waitForCanvas = () => {
+    return new Promise((resolve) => {
+      if (pdfCanvasRef.current) {
+        resolve();
+      } else {
+        setTimeout(() => waitForCanvas().then(resolve), 50);
       }
-      
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      setPageNum(num);
-      drawMarkups();
-    } catch (err) {
-      console.error('Page render error:', err);
-    }
+    });
   };
+  
+  await waitForCanvas();
+  
+  try {
+    const page = await pdf.getPage(num);
+    const canvas = pdfCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    const scale = zoom * 1.5;
+    const viewport = page.getViewport({ scale });
+    
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    
+    if (markupCanvasRef.current) {
+      markupCanvasRef.current.width = viewport.width;
+      markupCanvasRef.current.height = viewport.height;
+    }
+    
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    setPageNum(num);
+    drawMarkups();
+  } catch (err) {
+    console.error('Page render error:', err);
+  }
+};
 
   // Re-render when zoom changes
   useEffect(() => {
