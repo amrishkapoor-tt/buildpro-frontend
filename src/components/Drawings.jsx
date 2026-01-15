@@ -409,136 +409,254 @@ const Drawings = ({ projectId, token }) => {
 };
 
 // PDF Viewer Component with Markup Tools
+
+// Replace the PDFViewerWithMarkup component in Drawings.jsx with this:
+
 const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
   const [markups, setMarkups] = useState([]);
   const [markupMode, setMarkupMode] = useState(null);
   const [zoom, setZoom] = useState(1);
+  const [pageNum, setPageNum] = useState(1);
+  const [numPages, setNumPages] = useState(0);
+  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfError, setPdfError] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState(null);
   const [currentMarkup, setCurrentMarkup] = useState(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const canvasRef = useRef(null);
+  
+  const pdfCanvasRef = useRef(null);
+  const markupCanvasRef = useRef(null);
+  const pdfDocRef = useRef(null);
 
+  // Load PDF.js from CDN and then load the PDF
   useEffect(() => {
+    const loadPdfJs = async () => {
+      // Skip if already loaded
+      if (window.pdfjsLib) return;
+      
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          resolve();
+        };
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
+
+    const init = async () => {
+      try {
+        await loadPdfJs();
+        
+        // Get the PDF URL - construct from file_path if file_url not available
+        let pdfUrl = sheet.file_url;
+        if (!pdfUrl && sheet.file_path) {
+          pdfUrl = `${API_URL.replace('/api/v1', '')}/uploads/${sheet.file_path}`;
+        }
+        
+        if (!pdfUrl) {
+          setPdfError('No PDF file associated with this sheet');
+          setPdfLoading(false);
+          return;
+        }
+
+        console.log('Loading PDF from:', pdfUrl);
+        
+        const loadingTask = window.pdfjsLib.getDocument(pdfUrl);
+        const pdf = await loadingTask.promise;
+        pdfDocRef.current = pdf;
+        setNumPages(pdf.numPages);
+        await renderPage(1, pdf);
+        setPdfLoading(false);
+      } catch (err) {
+        console.error('PDF load error:', err);
+        setPdfError(`Failed to load PDF: ${err.message}`);
+        setPdfLoading(false);
+      }
+    };
+
+    init();
     loadMarkups();
-  }, []);
+  }, [sheet]);
 
+  const renderPage = async (num, pdf = pdfDocRef.current) => {
+    if (!pdf || !pdfCanvasRef.current) return;
+    
+    try {
+      const page = await pdf.getPage(num);
+      const canvas = pdfCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      const scale = zoom * 1.5;
+      const viewport = page.getViewport({ scale });
+      
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      
+      // Sync markup canvas size
+      if (markupCanvasRef.current) {
+        markupCanvasRef.current.width = viewport.width;
+        markupCanvasRef.current.height = viewport.height;
+      }
+      
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      setPageNum(num);
+      drawMarkups();
+    } catch (err) {
+      console.error('Page render error:', err);
+    }
+  };
+
+  // Re-render when zoom changes
   useEffect(() => {
-    drawCanvas();
-  }, [markups, currentMarkup, zoom]);
+    if (pdfDocRef.current && !pdfLoading) {
+      renderPage(pageNum);
+    }
+  }, [zoom]);
 
   const loadMarkups = async () => {
     try {
       const response = await fetch(`${API_URL}/drawing-sheets/${sheet.id}/markups`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!response.ok) return;
       const data = await response.json();
-      setMarkups(data.markups.map(m => ({ ...m, markup_data: typeof m.markup_data === 'string' ? JSON.parse(m.markup_data) : m.markup_data })));
-    } catch (error) {
-      console.error('Failed to load markups:', error);
+      setMarkups((data.markups || []).map(m => ({
+        ...m,
+        markup_data: typeof m.markup_data === 'string' ? JSON.parse(m.markup_data) : m.markup_data
+      })));
+    } catch (err) {
+      console.error('Failed to load markups:', err);
     }
   };
 
-  const drawCanvas = () => {
-    if (!canvasRef.current) return;
+  const drawMarkups = () => {
+    const canvas = markupCanvasRef.current;
+    if (!canvas) return;
     
-    const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    const scale = zoom * 1.5;
+    
+    // Draw saved markups
     markups.forEach(markup => {
-      const data = markup.markup_data;
-      ctx.strokeStyle = data.color || '#ef4444';
+      const d = markup.markup_data;
+      ctx.strokeStyle = d.color || '#ef4444';
+      ctx.fillStyle = d.color || '#ef4444';
       ctx.lineWidth = 2;
-      ctx.fillStyle = data.color || '#ef4444';
       ctx.font = '14px Arial';
       
-      if (data.type === 'rectangle') {
-        ctx.strokeRect(data.x * zoom, data.y * zoom, data.width * zoom, data.height * zoom);
-      } else if (data.type === 'circle') {
+      if (d.type === 'rectangle') {
+        ctx.strokeRect(d.x * scale, d.y * scale, d.width * scale, d.height * scale);
+      } else if (d.type === 'circle') {
         ctx.beginPath();
-        ctx.arc((data.x + data.width / 2) * zoom, (data.y + data.height / 2) * zoom, (Math.abs(data.width) / 2) * zoom, 0, 2 * Math.PI);
+        const centerX = (d.x + d.width / 2) * scale;
+        const centerY = (d.y + d.height / 2) * scale;
+        const radius = (Math.abs(d.width) / 2) * scale;
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         ctx.stroke();
-      } else if (data.type === 'arrow') {
+      } else if (d.type === 'arrow') {
         const headlen = 10;
-        const angle = Math.atan2(data.height * zoom, data.width * zoom);
+        const endX = (d.x + d.width) * scale;
+        const endY = (d.y + d.height) * scale;
+        const angle = Math.atan2(d.height * scale, d.width * scale);
+        
         ctx.beginPath();
-        ctx.moveTo(data.x * zoom, data.y * zoom);
-        ctx.lineTo((data.x + data.width) * zoom, (data.y + data.height) * zoom);
+        ctx.moveTo(d.x * scale, d.y * scale);
+        ctx.lineTo(endX, endY);
         ctx.stroke();
+        
+        // Arrowhead
         ctx.beginPath();
-        ctx.moveTo((data.x + data.width) * zoom, (data.y + data.height) * zoom);
-        ctx.lineTo((data.x + data.width) * zoom - headlen * Math.cos(angle - Math.PI / 6), (data.y + data.height) * zoom - headlen * Math.sin(angle - Math.PI / 6));
-        ctx.moveTo((data.x + data.width) * zoom, (data.y + data.height) * zoom);
-        ctx.lineTo((data.x + data.width) * zoom - headlen * Math.cos(angle + Math.PI / 6), (data.y + data.height) * zoom - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
         ctx.stroke();
-      } else if (data.type === 'text') {
-        ctx.fillText(data.text, data.x * zoom, data.y * zoom);
+      } else if (d.type === 'text') {
+        ctx.fillText(d.text, d.x * scale, d.y * scale);
       }
     });
     
+    // Draw current markup being created
     if (currentMarkup && isDrawing) {
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2;
+      const c = currentMarkup;
       
-      if (currentMarkup.type === 'rectangle') {
-        ctx.strokeRect(currentMarkup.startX * zoom, currentMarkup.startY * zoom, (currentMarkup.endX - currentMarkup.startX) * zoom, (currentMarkup.endY - currentMarkup.startY) * zoom);
-      } else if (currentMarkup.type === 'circle') {
-        const radius = Math.sqrt(Math.pow(currentMarkup.endX - currentMarkup.startX, 2) + Math.pow(currentMarkup.endY - currentMarkup.startY, 2)) / 2;
+      if (c.type === 'rectangle') {
+        ctx.strokeRect(c.startX * scale, c.startY * scale, (c.endX - c.startX) * scale, (c.endY - c.startY) * scale);
+      } else if (c.type === 'circle') {
+        const radius = Math.sqrt(Math.pow(c.endX - c.startX, 2) + Math.pow(c.endY - c.startY, 2)) / 2;
         ctx.beginPath();
-        ctx.arc(((currentMarkup.startX + currentMarkup.endX) / 2) * zoom, ((currentMarkup.startY + currentMarkup.endY) / 2) * zoom, radius * zoom, 0, 2 * Math.PI);
+        ctx.arc(((c.startX + c.endX) / 2) * scale, ((c.startY + c.endY) / 2) * scale, radius * scale, 0, 2 * Math.PI);
         ctx.stroke();
-      } else if (currentMarkup.type === 'arrow') {
+      } else if (c.type === 'arrow') {
         ctx.beginPath();
-        ctx.moveTo(currentMarkup.startX * zoom, currentMarkup.startY * zoom);
-        ctx.lineTo(currentMarkup.endX * zoom, currentMarkup.endY * zoom);
+        ctx.moveTo(c.startX * scale, c.startY * scale);
+        ctx.lineTo(c.endX * scale, c.endY * scale);
         ctx.stroke();
       }
     }
   };
 
-  const handleCanvasMouseDown = (e) => {
-    if (!markupMode) return;
-    const canvas = canvasRef.current;
+  useEffect(() => {
+    drawMarkups();
+  }, [markups, currentMarkup, isDrawing]);
+
+  const getCanvasCoords = (e) => {
+    const canvas = markupCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    
-    setIsDrawing(true);
-    setStartPos({ x, y });
+    const scale = zoom * 1.5;
+    return {
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale
+    };
+  };
+
+  const handleMouseDown = (e) => {
+    if (!markupMode) return;
+    const pos = getCanvasCoords(e);
     
     if (markupMode === 'text') {
       const text = prompt('Enter text:');
       if (text) {
-        saveMarkup({ type: 'text', x, y, text, color: '#3b82f6' });
+        saveMarkup({ type: 'text', x: pos.x, y: pos.y, text, color: '#3b82f6' });
       }
       setMarkupMode(null);
-      setIsDrawing(false);
+      return;
     }
+    
+    setIsDrawing(true);
+    setStartPos(pos);
   };
 
-  const handleCanvasMouseMove = (e) => {
-    if (!isDrawing || !startPos || markupMode === 'text') return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    setCurrentMarkup({ type: markupMode, startX: startPos.x, startY: startPos.y, endX: x, endY: y });
+  const handleMouseMove = (e) => {
+    if (!isDrawing || !startPos) return;
+    const pos = getCanvasCoords(e);
+    setCurrentMarkup({
+      type: markupMode,
+      startX: startPos.x,
+      startY: startPos.y,
+      endX: pos.x,
+      endY: pos.y
+    });
   };
 
-  const handleCanvasMouseUp = (e) => {
-    if (!isDrawing || !startPos || markupMode === 'text') return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
+  const handleMouseUp = (e) => {
+    if (!isDrawing || !startPos) return;
+    const pos = getCanvasCoords(e);
     
     saveMarkup({
       type: markupMode,
       x: startPos.x,
       y: startPos.y,
-      width: x - startPos.x,
-      height: y - startPos.y,
+      width: pos.x - startPos.x,
+      height: pos.y - startPos.y,
       color: '#ef4444'
     });
     
@@ -560,9 +678,8 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
       });
       const data = await response.json();
       setMarkups([...markups, { ...data.markup, markup_data: markupData }]);
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error('Failed to save markup:', error);
+    } catch (err) {
+      console.error('Failed to save markup:', err);
       alert('Failed to save markup');
     }
   };
@@ -574,8 +691,8 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setMarkups(markups.filter(m => m.id !== markupId));
-    } catch (error) {
-      console.error('Failed to delete markup:', error);
+    } catch (err) {
+      console.error('Failed to delete markup:', err);
       alert('Failed to delete markup');
     }
   };
@@ -596,6 +713,7 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Markup Tools */}
             <button
               onClick={() => setMarkupMode('rectangle')}
               className={`p-2 rounded ${markupMode === 'rectangle' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -625,52 +743,81 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
               <Type className="w-5 h-5" />
             </button>
             
-            <div className="w-px h-6 bg-gray-300 mx-2"></div>
+            <div className="w-px h-6 bg-gray-300 mx-2" />
             
-            <button onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+            {/* Zoom Controls */}
+            <button onClick={() => setZoom(Math.max(0.5, zoom - 0.25))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
               <ZoomOut className="w-5 h-5" />
             </button>
-            <span className="text-sm text-gray-600 min-w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(Math.min(3, zoom + 0.1))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+            <span className="text-sm text-gray-600 min-w-16 text-center">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(Math.min(3, zoom + 0.25))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
               <ZoomIn className="w-5 h-5" />
             </button>
+
+            {/* Page Navigation */}
+            {numPages > 1 && (
+              <>
+                <div className="w-px h-6 bg-gray-300 mx-2" />
+                <button 
+                  onClick={() => pageNum > 1 && renderPage(pageNum - 1)} 
+                  disabled={pageNum <= 1}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-gray-600">{pageNum} / {numPages}</span>
+                <button 
+                  onClick={() => pageNum < numPages && renderPage(pageNum + 1)} 
+                  disabled={pageNum >= numPages}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Viewer Area */}
-      <div className="flex-1 flex overflow-auto bg-gray-900">
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="bg-white relative" style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}>
-            <div className="w-[800px] h-[1000px] bg-white border-2 border-gray-300 relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-gray-400">
-                  <FileText className="w-24 h-24 mx-auto mb-4" />
-                  <p className="text-lg font-medium">PDF: {sheet.sheet_number}</p>
-                  <p className="text-sm">{sheet.title}</p>
-                  <p className="text-xs mt-4">Use markup tools above to annotate</p>
-                </div>
-              </div>
-              
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* PDF Viewer Area */}
+        <div className="flex-1 overflow-auto bg-gray-800 p-8 flex items-start justify-center">
+          {pdfLoading ? (
+            <div className="text-white text-center">
+              <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
+              <p>Loading PDF...</p>
+            </div>
+          ) : pdfError ? (
+            <div className="text-center text-white">
+              <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-red-400 mb-2">{pdfError}</p>
+              <p className="text-sm text-gray-400">
+                File path: {sheet.file_path || 'None'}
+              </p>
+            </div>
+          ) : (
+            <div className="relative shadow-2xl">
+              {/* PDF Canvas */}
+              <canvas ref={pdfCanvasRef} className="block bg-white" />
+              {/* Markup Canvas (overlaid on top) */}
               <canvas
-                ref={canvasRef}
-                width={800 * zoom}
-                height={1000 * zoom}
-                onMouseDown={handleCanvasMouseDown}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-                className="absolute inset-0 cursor-crosshair"
-                style={{ width: '800px', height: '1000px' }}
+                ref={markupCanvasRef}
+                className="absolute top-0 left-0"
+                style={{ cursor: markupMode ? 'crosshair' : 'default' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
               />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Markups Sidebar */}
         <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
           <h4 className="font-semibold text-gray-900 mb-4">Markups ({markups.length})</h4>
           {markups.length === 0 ? (
-            <p className="text-sm text-gray-500">No markups yet. Use tools above to annotate.</p>
+            <p className="text-sm text-gray-500">No markups yet. Select a tool above and draw on the PDF.</p>
           ) : (
             <div className="space-y-3">
               {markups.map(markup => (
@@ -705,5 +852,6 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
     </div>
   );
 };
+
 
 export default Drawings;
