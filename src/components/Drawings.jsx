@@ -547,7 +547,6 @@ const renderPage = async (num, pdf = pdfDocRef.current) => {
     
     await page.render({ canvasContext: ctx, viewport }).promise;
     setPageNum(num);
-    drawMarkups();
   } catch (err) {
     console.error('Page render error:', err);
   }
@@ -555,8 +554,10 @@ const renderPage = async (num, pdf = pdfDocRef.current) => {
 
   // Re-render when zoom changes
   useEffect(() => {
-    if (pdfDocRef.current && !pdfLoading) {
-      renderPage(pageNum);
+    if (pdfDocRef.current && !pdfLoading && pdfCanvasRef.current) {
+      renderPage(pageNum).then(() => {
+        drawMarkups();
+      });
     }
   }, [zoom]);
 
@@ -651,7 +652,7 @@ const renderPage = async (num, pdf = pdfDocRef.current) => {
     if (!pdfLoading && markupCanvasRef.current) {
       drawMarkups();
     }
-  }, [markups, currentMarkup, isDrawing, pdfLoading]);
+  }, [markups, currentMarkup, isDrawing, pdfLoading, pageNum]);
 
   const getCanvasCoords = (e) => {
     const canvas = markupCanvasRef.current;
