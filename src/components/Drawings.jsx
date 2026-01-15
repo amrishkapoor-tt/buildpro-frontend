@@ -451,57 +451,67 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
 
   // Load PDF.js from CDN and then load the PDF
   useEffect(() => {
-    const loadPdfJs = async () => {
-      // Skip if already loaded
-      if (window.pdfjsLib) return;
+  let cancelled = false;
+
+  const loadPdfJs = async () => {
+    if (window.pdfjsLib) return;
+    
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve();
+      };
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+  };
+
+  const init = async () => {
+    try {
+      await loadPdfJs();
       
-      return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        script.onload = () => {
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          resolve();
-        };
-        script.onerror = reject;
-        document.body.appendChild(script);
-      });
-    };
+      if (cancelled) return;
 
-    const init = async () => {
-      try {
-        await loadPdfJs();
-        
-        // Get the PDF URL - construct from file_path if file_url not available
-        let pdfUrl = sheet.file_url;
-        if (!pdfUrl && sheet.file_path) {
-          pdfUrl = `${API_URL.replace('/api/v1', '')}/${sheet.file_path}`;
-        }
-        
-        if (!pdfUrl) {
-          setPdfError('No PDF file associated with this sheet');
-          setPdfLoading(false);
-          return;
-        }
-
-        console.log('Loading PDF from:', pdfUrl);
-        
-        const loadingTask = window.pdfjsLib.getDocument(pdfUrl);
-        const pdf = await loadingTask.promise;
-        pdfDocRef.current = pdf;
-        setNumPages(pdf.numPages);
-        await renderPage(1, pdf);
+      let pdfUrl = sheet.file_url;
+      if (!pdfUrl && sheet.file_path) {
+        const path = sheet.file_path.startsWith('uploads/') ? sheet.file_path : `uploads/${sheet.file_path}`;
+        pdfUrl = `${API_URL.replace('/api/v1', '')}/${path}`;
+      }
+      
+      if (!pdfUrl) {
+        setPdfError('No PDF file associated with this sheet');
         setPdfLoading(false);
-      } catch (err) {
-        console.error('PDF load error:', err);
+        return;
+      }
+
+      console.log('Loading PDF from:', pdfUrl);
+      
+      const loadingTask = window.pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+      
+      if (cancelled) return;
+      
+      pdfDocRef.current = pdf;
+      setNumPages(pdf.numPages);
+      setPdfLoading(false);
+      renderPage(1, pdf);
+    } catch (err) {
+      console.error('PDF load error:', err);
+      if (!cancelled) {
         setPdfError(`Failed to load PDF: ${err.message}`);
         setPdfLoading(false);
       }
-    };
+    }
+  };
 
-    init();
-    loadMarkups();
-  }, [sheet]);
+  init();
+  loadMarkups();
+
+  return () => { cancelled = true; };
+}, [sheet]);
 
 const renderPage = async (num, pdf = pdfDocRef.current) => {
   if (!pdf) return;
