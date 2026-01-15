@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X } from 'lucide-react';
 
-// IMPORTANT: Update this to your Render backend URL after deployment
-// const API_URL = 'http://localhost:3001/api/v1';
-// const API_URL = 'https://buildpro-api.onrender.com/api/v1';
-// For production, change the line above to:
-// const API_URL = 'https://your-backend-url.onrender.com/api/v1';
-const API_URL = process.env.REACT_APP_API_URL || 'https://buildpro-api.onrender.com/api/v1';
+// Import all module components
+import Documents from './components/Documents';
+import RFIs from './components/RFIs';
+import Team from './components/Team';
+import Drawings from './components/Drawings';
+import Photos from './components/Photos';
+import Submittals from './components/Submittals';
+import DailyLogs from './components/DailyLogs';
+import PunchList from './components/PunchList';
+import Financials from './components/Financials';
+
+// IMPORTANT: Update this to your Render backend URL
+const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const BuildProProduction = () => {
   const [token, setToken] = useState(localStorage.getItem('buildpro_token'));
@@ -17,12 +24,10 @@ const BuildProProduction = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Modals
   const [showLogin, setShowLogin] = useState(!token);
   const [showRegister, setShowRegister] = useState(false);
   const [showNewProject, setShowNewProject] = useState(false);
   
-  // Forms
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
     email: '',
@@ -167,7 +172,6 @@ const BuildProProduction = () => {
     }
   };
 
-  // Login Screen
   if (showLogin && !showRegister) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
@@ -185,13 +189,6 @@ const BuildProProduction = () => {
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-green-800 text-center">
-              <strong>✅ Production Deployment Active</strong><br />
-              Connected to: {API_URL.replace('/api/v1', '')}
-            </p>
-          </div>
 
           <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">Sign In</h2>
           <div className="space-y-4">
@@ -234,7 +231,6 @@ const BuildProProduction = () => {
     );
   }
 
-  // Register Screen
   if (showRegister) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
@@ -311,10 +307,8 @@ const BuildProProduction = () => {
     );
   }
 
-  // Main App
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
@@ -345,7 +339,6 @@ const BuildProProduction = () => {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-gray-200 min-h-screen">
           <nav className="p-4 space-y-1">
             {[
@@ -374,7 +367,6 @@ const BuildProProduction = () => {
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -388,7 +380,6 @@ const BuildProProduction = () => {
             </div>
           ) : (
             <>
-              {/* Project Selector */}
               {projects.length > 0 && (
                 <div className="mb-6 flex items-center justify-between">
                   <select
@@ -452,26 +443,28 @@ const BuildProProduction = () => {
                   )}
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="font-semibold text-blue-900 mb-2">🎉 Production Platform Active!</h3>
+                    <h3 className="font-semibold text-blue-900 mb-2">🎉 Production Platform Live!</h3>
                     <p className="text-sm text-blue-800">
-                      Your BuildPro platform is now live and connected to a real database. 
-                      All data you create is persistent and secure. Explore the modules in the sidebar to get started!
+                      All 10 modules are active and connected to your live database. 
+                      Use the sidebar to explore Documents, RFIs, Drawings, Photos, Submittals, Daily Logs, Punch List, Financials, and Team management.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Placeholder views for other modules */}
-              {currentView !== 'dashboard' && (
-                <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {currentView.charAt(0).toUpperCase() + currentView.slice(1)} Module
-                  </h3>
-                  <p className="text-gray-600">
-                    This module is ready and connected to your backend API.
-                    The full UI components are available in the artifacts for integration.
-                  </p>
-                </div>
+              {/* Route to Module Components */}
+              {selectedProject && (
+                <>
+                  {currentView === 'documents' && <Documents projectId={selectedProject.id} token={token} />}
+                  {currentView === 'rfis' && <RFIs projectId={selectedProject.id} token={token} />}
+                  {currentView === 'team' && <Team projectId={selectedProject.id} token={token} />}
+                  {currentView === 'drawings' && <Drawings projectId={selectedProject.id} token={token} />}
+                  {currentView === 'photos' && <Photos projectId={selectedProject.id} token={token} />}
+                  {currentView === 'submittals' && <Submittals projectId={selectedProject.id} token={token} />}
+                  {currentView === 'dailylogs' && <DailyLogs projectId={selectedProject.id} token={token} />}
+                  {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
+                  {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}
+                </>
               )}
             </>
           )}

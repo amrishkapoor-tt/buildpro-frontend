@@ -1,0 +1,273 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Plus, X, Send, Lock, Sun, Cloud } from 'lucide-react';
+
+const API_URL = 'https://buildpro-api.onrender.com/api/v1';
+
+const DailyLogs = ({ projectId, token }) => {
+  const [dailyLogs, setDailyLogs] = useState([]);
+  const [selectedLog, setSelectedLog] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showNewLog, setShowNewLog] = useState(false);
+  const [showLogDetail, setShowLogDetail] = useState(false);
+  
+  const [logForm, setLogForm] = useState({
+    log_date: new Date().toISOString().split('T')[0],
+    weather: { temperature: '', conditions: 'sunny', wind: '' },
+    work_performed: '',
+    delays: ''
+  });
+
+  useEffect(() => {
+    if (projectId) loadDailyLogs();
+  }, [projectId]);
+
+  const apiCall = async (endpoint, options = {}) => {
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+    if (!response.ok) throw new Error('Request failed');
+    return response.json();
+  };
+
+  const loadDailyLogs = async () => {
+    setLoading(true);
+    try {
+      const data = await apiCall(`/projects/${projectId}/daily-logs`);
+      setDailyLogs(data.daily_logs || []);
+    } catch (error) {
+      console.error('Failed to load daily logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateLog = async (e) => {
+    e.preventDefault();
+    try {
+      const data = await apiCall(`/projects/${projectId}/daily-logs`, {
+        method: 'POST',
+        body: JSON.stringify(logForm)
+      });
+      setDailyLogs([data.daily_log, ...dailyLogs]);
+      setShowNewLog(false);
+      setLogForm({
+        log_date: new Date().toISOString().split('T')[0],
+        weather: { temperature: '', conditions: 'sunny', wind: '' },
+        work_performed: '',
+        delays: ''
+      });
+    } catch (error) {
+      alert('Failed to create daily log: ' + error.message);
+    }
+  };
+
+  const loadLogDetail = async (logId) => {
+    try {
+      const data = await apiCall(`/daily-logs/${logId}`);
+      setSelectedLog(data.daily_log);
+      setShowLogDetail(true);
+    } catch (error) {
+      console.error('Failed to load log:', error);
+    }
+  };
+
+  const handleSubmitLog = async () => {
+    if (!selectedLog) return;
+    if (!window.confirm('Submit this log? It will become read-only.')) return;
+    
+    try {
+      await apiCall(`/daily-logs/${selectedLog.id}/submit`, {
+        method: 'POST'
+      });
+      setShowLogDetail(false);
+      loadDailyLogs();
+    } catch (error) {
+      alert('Failed to submit log: ' + error.message);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-gray-900">Daily Logs</h2>
+        <button
+          onClick={() => setShowNewLog(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <Plus className="w-5 h-5" />
+          New Daily Log
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">Loading...</div>
+      ) : dailyLogs.length === 0 ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">No daily logs yet</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {dailyLogs.map(log => {
+            const WeatherIcon = log.weather?.conditions === 'rainy' ? Cloud : Sun;
+            return (
+              <div
+                key={log.id}
+                onClick={() => loadLogDetail(log.id)}
+                className="bg-white p-4 rounded-lg border border-gray-200 hover:shadow-md cursor-pointer transition-all"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-gray-900">
+                      {new Date(log.log_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {log.is_submitted ? (
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded flex items-center gap-1">
+                      <Lock className="w-3 h-3" />
+                      Submitted
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
+                      Draft
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <WeatherIcon className="w-4 h-4" />
+                    <span>{log.weather?.temperature || 'N/A'}</span>
+                  </div>
+                  <p className="text-xs line-clamp-2">{log.work_performed}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* New Log Modal */}
+      {showNewLog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">Create Daily Log</h3>
+              <button onClick={() => setShowNewLog(false)}>
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={logForm.log_date}
+                  onChange={(e) => setLogForm({ ...logForm, log_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Temperature</label>
+                  <input
+                    value={logForm.weather.temperature}
+                    onChange={(e) => setLogForm({ ...logForm, weather: { ...logForm.weather, temperature: e.target.value } })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="72°F"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Conditions</label>
+                  <select
+                    value={logForm.weather.conditions}
+                    onChange={(e) => setLogForm({ ...logForm, weather: { ...logForm.weather, conditions: e.target.value } })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="sunny">Sunny</option>
+                    <option value="cloudy">Cloudy</option>
+                    <option value="rainy">Rainy</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Work Performed</label>
+                <textarea
+                  value={logForm.work_performed}
+                  onChange={(e) => setLogForm({ ...logForm, work_performed: e.target.value })}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Describe work completed today..."
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateLog}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create Log
+                </button>
+                <button
+                  onClick={() => setShowNewLog(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Log Detail Modal */}
+      {showLogDetail && selectedLog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-semibold text-gray-900">
+                {new Date(selectedLog.log_date).toLocaleDateString()}
+              </h3>
+              <div className="flex items-center gap-2">
+                {!selectedLog.is_submitted && (
+                  <button
+                    onClick={handleSubmitLog}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Send className="w-4 h-4" />
+                    Submit & Lock
+                  </button>
+                )}
+                <button onClick={() => setShowLogDetail(false)}>
+                  <X className="w-6 h-6 text-gray-400" />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Weather</h4>
+                <p className="text-sm text-gray-700">{selectedLog.weather?.temperature} • {selectedLog.weather?.conditions}</p>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Work Performed</h4>
+                <p className="text-sm text-gray-700">{selectedLog.work_performed}</p>
+              </div>
+              {selectedLog.delays && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Delays</h4>
+                  <p className="text-sm text-gray-700">{selectedLog.delays}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default DailyLogs;
