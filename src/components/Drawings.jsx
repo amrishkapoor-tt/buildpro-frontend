@@ -117,6 +117,15 @@ const Drawings = ({ projectId, token }) => {
     }
   };
 
+  const handleDeleteSheet = async (sheetId) => {
+    try {
+      await apiCall(`/drawing-sheets/${sheetId}`, { method: 'DELETE' });
+      loadSetDetails(selectedSet.id);
+    } catch (error) {
+    alert('Failed to delete sheet: ' + error.message);
+   }
+  };
+
   const openPDFViewer = async (sheet) => {
     try {
       const data = await apiCall(`/drawing-sheets/${sheet.id}`);
@@ -199,34 +208,46 @@ const Drawings = ({ projectId, token }) => {
               </div>
             ) : (
               selectedSet.sheets.map(sheet => (
-                <div key={sheet.id} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <FileText className="w-8 h-8 text-blue-600" />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900">{sheet.sheet_number}</p>
-                          {sheet.document_version_id && (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
-                              PDF
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">{sheet.title}</p>
-                      </div>
-                    </div>
-                    {sheet.document_version_id && (
-                      <button
-                        onClick={() => openPDFViewer(sheet)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View & Markup
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+  <div key={sheet.id} className="p-4 hover:bg-gray-50">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <FileText className="w-8 h-8 text-blue-600" />
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900">{sheet.sheet_number}</p>
+            {sheet.document_version_id && (
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                PDF
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600">{sheet.title}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {sheet.document_version_id && (
+          <button
+            onClick={() => openPDFViewer(sheet)}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Eye className="w-4 h-4" />
+            View & Markup
+          </button>
+        )}
+        <button
+          onClick={() => {
+            if (window.confirm('Delete this sheet?')) {
+              handleDeleteSheet(sheet.id);
+            }
+          }}
+          className="p-2 text-red-600 hover:bg-red-50 rounded"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  </div>
+))
             )}
           </div>
         </div>
@@ -454,7 +475,7 @@ const PDFViewerWithMarkup = ({ sheet, token, onClose }) => {
         // Get the PDF URL - construct from file_path if file_url not available
         let pdfUrl = sheet.file_url;
         if (!pdfUrl && sheet.file_path) {
-          pdfUrl = `${API_URL.replace('/api/v1', '')}/uploads/${sheet.file_path}`;
+          pdfUrl = `${API_URL.replace('/api/v1', '')}/${sheet.file_path}`;
         }
         
         if (!pdfUrl) {
