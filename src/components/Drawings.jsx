@@ -648,8 +648,10 @@ const renderPage = async (num, pdf = pdfDocRef.current) => {
   };
 
   useEffect(() => {
-    drawMarkups();
-  }, [markups, currentMarkup, isDrawing]);
+    if (!pdfLoading && markupCanvasRef.current) {
+      drawMarkups();
+    }
+  }, [markups, currentMarkup, isDrawing, pdfLoading]);
 
   const getCanvasCoords = (e) => {
     const canvas = markupCanvasRef.current;
