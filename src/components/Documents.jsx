@@ -72,7 +72,7 @@ const Documents = ({ projectId, token }) => {
 
   const handleDownload = (doc) => {
     // Construct the file URL
-    const fileUrl = doc.file_url || `${API_URL.replace('/api/v1', '')}/uploads/${doc.file_path}`;
+    const fileUrl = doc.file_url || `${API_URL.replace('/api/v1', '')}/${doc.file_path}`;
     window.open(fileUrl, '_blank');
   };
 
