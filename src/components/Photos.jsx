@@ -366,11 +366,11 @@ const Photos = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Create Album</h3>
-              <button onClick={() => setShowNewAlbum(false)}>
+              <button onClick={() => setShowNewAlbum(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleCreateAlbum} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Album Name</label>
                 <input
@@ -378,6 +378,7 @@ const Photos = ({ projectId, token }) => {
                   onChange={(e) => setAlbumForm({ ...albumForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Site Progress - January 2024"
+                  required
                 />
               </div>
               <div>
@@ -391,19 +392,20 @@ const Photos = ({ projectId, token }) => {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleCreateAlbum}
+                  type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Create Album
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowNewAlbum(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -414,11 +416,11 @@ const Photos = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-2xl w-full p-6 my-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Upload Photo</h3>
-              <button onClick={() => setShowUploadPhoto(false)}>
+              <button onClick={() => setShowUploadPhoto(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleUploadPhoto} className="space-y-4">
               {albums.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Select Album</label>
@@ -440,6 +442,7 @@ const Photos = ({ projectId, token }) => {
                   accept="image/*"
                   onChange={(e) => setUploadFile(e.target.files[0])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  required
                 />
               </div>
               <div>
@@ -491,20 +494,21 @@ const Photos = ({ projectId, token }) => {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleUploadPhoto}
+                  type="submit"
                   disabled={!uploadFile}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
                 >
                   Upload Photo
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowUploadPhoto(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
