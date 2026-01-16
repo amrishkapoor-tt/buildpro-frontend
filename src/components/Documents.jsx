@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Upload, FileText, Trash2, Download, Star, Edit2, Tag, Clock,
   Search, Filter, MoreVertical, ChevronRight, X, Eye, FolderTree as FolderIcon,
-  CheckSquare, Square
+  CheckSquare, Square, Link as LinkIcon
 } from 'lucide-react';
 import FolderTree from './FolderTree';
 import EnhancedUploadModal from './EnhancedUploadModal';
 import VersionHistory from './VersionHistory';
 import DocumentPreview from './DocumentPreview';
+import DocumentLinkModal from './DocumentLinkModal';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -38,6 +39,7 @@ const Documents = ({ projectId, token }) => {
   const [docMenuOpen, setDocMenuOpen] = useState(null);
   const [versionHistoryDoc, setVersionHistoryDoc] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [linkDoc, setLinkDoc] = useState(null);
   const [showFolderTree, setShowFolderTree] = useState(true);
 
   useEffect(() => {
@@ -621,6 +623,13 @@ const Documents = ({ projectId, token }) => {
                                   <Edit2 className="w-5 h-5" />
                                 </button>
                                 <button
+                                  onClick={() => setLinkDoc(doc)}
+                                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
+                                  title="Link to RFI/Submittal/Task"
+                                >
+                                  <LinkIcon className="w-5 h-5" />
+                                </button>
+                                <button
                                   onClick={() => handleDeleteDocument(doc.id, doc.name)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded"
                                   title="Delete"
@@ -678,6 +687,16 @@ const Documents = ({ projectId, token }) => {
           document={previewDoc}
           token={token}
           onClose={() => setPreviewDoc(null)}
+        />
+      )}
+
+      {linkDoc && (
+        <DocumentLinkModal
+          document={linkDoc}
+          token={token}
+          projectId={projectId}
+          onClose={() => setLinkDoc(null)}
+          onLinked={loadDocuments}
         />
       )}
     </div>
