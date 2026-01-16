@@ -12,6 +12,7 @@ import DailyLogs from './components/DailyLogs';
 import PunchList from './components/PunchList';
 import Financials from './components/Financials';
 import Schedule from './components/Schedule';
+import Dashboard from './components/Dashboard';
 
 // IMPORTANT: Update this to your Render backend URL
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -408,50 +409,26 @@ const BuildProProduction = () => {
 
               {/* Dashboard View */}
               {currentView === 'dashboard' && (
-                <div className="space-y-6">
-                  <h2 className="text-3xl font-bold text-gray-900">Welcome to BuildPro</h2>
-                  
-                  {projects.length === 0 ? (
-                    <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-                      <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Projects Yet</h3>
-                      <p className="text-gray-600 mb-6">Create your first project to get started</p>
-                      <button 
-                        onClick={() => setShowNewProject(true)}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                      >
-                        Create First Project
-                      </button>
-                    </div>
-                  ) : selectedProject && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-sm font-medium text-gray-600 mb-2">Project Status</h3>
-                        <p className="text-2xl font-bold text-gray-900 capitalize">{selectedProject.status}</p>
-                      </div>
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-sm font-medium text-gray-600 mb-2">Budget</h3>
-                        <p className="text-2xl font-bold text-gray-900">
-                          ${selectedProject.budget ? parseInt(selectedProject.budget).toLocaleString() : 'N/A'}
-                        </p>
-                      </div>
-                      <div className="bg-white p-6 rounded-lg border border-gray-200">
-                        <h3 className="text-sm font-medium text-gray-600 mb-2">Team Role</h3>
-                        <p className="text-2xl font-bold text-gray-900 capitalize">
-                          {selectedProject.user_role?.replace('_', ' ') || 'Member'}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h3 className="font-semibold text-blue-900 mb-2">🎉 Production Platform Live!</h3>
-                    <p className="text-sm text-blue-800">
-                      All 10 modules are active and connected to your live database. 
-                      Use the sidebar to explore Documents, RFIs, Drawings, Photos, Submittals, Daily Logs, Punch List, Financials, and Team management.
-                    </p>
+                projects.length === 0 ? (
+                  <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
+                    <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Projects Yet</h3>
+                    <p className="text-gray-600 mb-6">Create your first project to get started</p>
+                    <button
+                      onClick={() => setShowNewProject(true)}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    >
+                      Create First Project
+                    </button>
                   </div>
-                </div>
+                ) : selectedProject && (
+                  <Dashboard
+                    projectId={selectedProject.id}
+                    project={selectedProject}
+                    token={token}
+                    onNavigate={setCurrentView}
+                  />
+                )
               )}
 
               {/* Route to Module Components */}
