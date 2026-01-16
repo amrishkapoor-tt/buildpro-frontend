@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, Upload, FileText, X } from 'lucide-react';
+import { FolderOpen, Upload, FileText, X, Trash2, Download } from 'lucide-react';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -19,8 +19,9 @@ const Documents = ({ projectId, token }) => {
       const response = await fetch(`${API_URL}/projects/${projectId}/documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (!response.ok) throw new Error('Failed to load');
       const data = await response.json();
-      setDocuments(data.documents);
+      setDocuments(data.documents || []);
     } catch (error) {
       console.error('Failed to load documents:', error);
     } finally {
@@ -42,13 +43,37 @@ const Documents = ({ projectId, token }) => {
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-      const data = await response.json();
-      setDocuments([data.document, ...documents]);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
       setShowUpload(false);
       setUploadFile(null);
+      loadDocuments();
     } catch (error) {
-      alert('Upload failed');
+      alert('Upload failed: ' + error.message);
     }
+  };
+
+  const handleDelete = async (docId, docName) => {
+    if (!window.confirm(`Delete "${docName}"?`)) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Delete failed');
+      loadDocuments();
+    } catch (error) {
+      alert('Failed to delete: ' + error.message);
+    }
+  };
+
+  const handleDownload = (doc) => {
+    // Construct the file URL
+    const fileUrl = doc.file_url || `${API_URL.replace('/api/v1', '')}/uploads/${doc.file_path}`;
+    window.open(fileUrl, '_blank');
   };
 
   return (
@@ -81,12 +106,26 @@ const Documents = ({ projectId, token }) => {
                   <p className="font-medium text-gray-900">{doc.name}</p>
                   <p className="text-sm text-gray-500">
                     {doc.first_name} {doc.last_name} • {new Date(doc.uploaded_at).toLocaleDateString()}
+                    {doc.file_size && ` • ${(doc.file_size / 1024).toFixed(1)} KB`}
                   </p>
                 </div>
               </div>
-              <button className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700">
-                Download
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleDownload(doc)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                  title="Download"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => handleDelete(doc.id, doc.name)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded"
+                  title="Delete"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -107,6 +146,9 @@ const Documents = ({ projectId, token }) => {
                 onChange={(e) => setUploadFile(e.target.files[0])}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
+              {uploadFile && (
+                <p className="text-sm text-gray-600">Selected: {uploadFile.name}</p>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={handleUpload}
