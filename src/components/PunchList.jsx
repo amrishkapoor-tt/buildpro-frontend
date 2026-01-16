@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wrench, Plus, X, CheckCircle, Clock, AlertCircle, Search } from 'lucide-react';
+import LinkedDocuments from './LinkedDocuments';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -305,6 +306,95 @@ const PunchList = ({ projectId, token }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Punch Item Detail Modal */}
+      {showItemDetail && selectedItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-semibold text-gray-900">{selectedItem.item_number}</h3>
+                <p className="text-gray-600 mt-1">{selectedItem.description}</p>
+              </div>
+              <button onClick={() => setShowItemDetail(false)}>
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-lg font-medium ${getStatusColor(selectedItem.status)}`}>
+                  {selectedItem.status.replace('_', ' ')}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                <div>
+                  <p className="font-medium text-gray-900">Location</p>
+                  <p>{selectedItem.location}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Trade</p>
+                  <p>{selectedItem.trade}</p>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Priority</p>
+                  <p className="capitalize">{selectedItem.priority}</p>
+                </div>
+                {selectedItem.due_date && (
+                  <div>
+                    <p className="font-medium text-gray-900">Due Date</p>
+                    <p>{new Date(selectedItem.due_date).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                {selectedItem.status === 'open' && (
+                  <button
+                    onClick={() => handleStatusChange(selectedItem.id, 'in_progress')}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                  >
+                    Start Work
+                  </button>
+                )}
+                {selectedItem.status === 'in_progress' && (
+                  <button
+                    onClick={() => handleStatusChange(selectedItem.id, 'completed')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Mark Complete
+                  </button>
+                )}
+                {selectedItem.status === 'completed' && (
+                  <button
+                    onClick={() => handleStatusChange(selectedItem.id, 'verified')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Verify
+                  </button>
+                )}
+                {selectedItem.status === 'verified' && (
+                  <button
+                    onClick={() => handleStatusChange(selectedItem.id, 'closed')}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+
+              {/* Linked Documents */}
+              <LinkedDocuments
+                entityType="punch_item"
+                entityId={selectedItem.id}
+                token={token}
+                projectId={projectId}
+              />
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, X, Send, Lock, Sun, Cloud } from 'lucide-react';
+import LinkedDocuments from './LinkedDocuments';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -278,6 +279,14 @@ const DailyLogs = ({ projectId, token }) => {
                   <p className="text-sm text-gray-700">{selectedLog.delays}</p>
                 </div>
               )}
+
+              {/* Linked Documents */}
+              <LinkedDocuments
+                entityType="daily_log"
+                entityId={selectedLog.id}
+                token={token}
+                projectId={projectId}
+              />
             </div>
           </div>
         </div>

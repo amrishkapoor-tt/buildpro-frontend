@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, X, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import LinkedDocuments from './LinkedDocuments';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -312,6 +313,14 @@ const RFIs = ({ projectId, token }) => {
                   </div>
                 )}
               </div>
+
+              {/* Linked Documents */}
+              <LinkedDocuments
+                entityType="rfi"
+                entityId={selectedRFI.id}
+                token={token}
+                projectId={projectId}
+              />
             </div>
           </div>
         </div>

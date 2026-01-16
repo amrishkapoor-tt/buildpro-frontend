@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, X, Send, CheckCircle, XCircle, AlertTriangle, Clock, Search } from 'lucide-react';
+import LinkedDocuments from './LinkedDocuments';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -452,6 +453,14 @@ const Submittals = ({ projectId, token }) => {
                   Submit for Review
                 </button>
               )}
+
+              {/* Linked Documents */}
+              <LinkedDocuments
+                entityType="submittal"
+                entityId={selectedSubmittal.id}
+                token={token}
+                projectId={projectId}
+              />
             </div>
           </div>
         </div>
