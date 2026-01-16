@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X } from 'lucide-react';
+import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3 } from 'lucide-react';
 
 // Import all module components
 import Documents from './components/Documents';
@@ -11,6 +11,7 @@ import Submittals from './components/Submittals';
 import DailyLogs from './components/DailyLogs';
 import PunchList from './components/PunchList';
 import Financials from './components/Financials';
+import Schedule from './components/Schedule';
 
 // IMPORTANT: Update this to your Render backend URL
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -343,6 +344,7 @@ const BuildProProduction = () => {
           <nav className="p-4 space-y-1">
             {[
               { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+              { id: 'schedule', icon: BarChart3, label: 'Schedule' },
               { id: 'drawings', icon: Layers, label: 'Drawings' },
               { id: 'documents', icon: FolderOpen, label: 'Documents' },
               { id: 'photos', icon: Camera, label: 'Photos' },
@@ -464,6 +466,7 @@ const BuildProProduction = () => {
                   {currentView === 'dailylogs' && <DailyLogs projectId={selectedProject.id} token={token} />}
                   {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
                   {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}
+                  {currentView === 'schedule' && <Schedule projectId={selectedProject.id} token={token} />}
                 </>
               )}
             </>
