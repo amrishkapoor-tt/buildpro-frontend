@@ -37,6 +37,13 @@ const Photos = ({ projectId, token }) => {
     }
   }, [projectId]);
 
+  useEffect(() => {
+    // Auto-select first album when upload modal opens and no album is selected
+    if (showUploadPhoto && !selectedAlbum && albums.length > 0) {
+      setSelectedAlbum(albums[0]);
+    }
+  }, [showUploadPhoto, selectedAlbum, albums]);
+
   const apiCall = async (endpoint, options = {}) => {
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
@@ -218,7 +225,7 @@ const Photos = ({ projectId, token }) => {
           </button>
           <button
             onClick={() => setShowUploadPhoto(true)}
-            disabled={!selectedAlbum && albums.length === 0}
+            disabled={albums.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
           >
             <Camera className="w-5 h-5" />
