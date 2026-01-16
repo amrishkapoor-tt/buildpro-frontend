@@ -17,6 +17,8 @@ const Photos = ({ projectId, token }) => {
   const [showUploadPhoto, setShowUploadPhoto] = useState(false);
   const [showPhotoDetail, setShowPhotoDetail] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDeleteAlbumConfirm, setShowDeleteAlbumConfirm] = useState(false);
+  const [albumToDelete, setAlbumToDelete] = useState(null);
   
   const [albumForm, setAlbumForm] = useState({ name: '', description: '' });
   const [photoForm, setPhotoForm] = useState({
@@ -190,6 +192,34 @@ const Photos = ({ projectId, token }) => {
     }
   };
 
+  const handleDeleteAlbumClick = (album, e) => {
+    e.stopPropagation();
+    setAlbumToDelete(album);
+    setShowDeleteAlbumConfirm(true);
+  };
+
+  const handleDeleteAlbum = async () => {
+    if (!albumToDelete) return;
+
+    try {
+      await apiCall(`/photo-albums/${albumToDelete.id}`, {
+        method: 'DELETE'
+      });
+
+      // Clear selected album if it was the one deleted
+      if (selectedAlbum?.id === albumToDelete.id) {
+        setSelectedAlbum(null);
+      }
+
+      setShowDeleteAlbumConfirm(false);
+      setAlbumToDelete(null);
+      loadAlbums();
+      loadPhotos();
+    } catch (error) {
+      alert('Failed to delete album: ' + error.message);
+    }
+  };
+
   const filteredPhotos = photos.filter(photo => {
     const matchesAlbum = !selectedAlbum || photo.album_id === selectedAlbum.id;
     const matchesTag = !filterTag || (photo.tags && photo.tags.includes(filterTag));
@@ -249,18 +279,25 @@ const Photos = ({ projectId, token }) => {
                 All Photos ({photos.length})
               </button>
               {albums.map(album => (
-                <button
+                <div
                   key={album.id}
-                  onClick={() => setSelectedAlbum(album)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                  className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                     selectedAlbum?.id === album.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
                   }`}
+                  onClick={() => setSelectedAlbum(album)}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-1 min-w-0 mr-2">
                     <span className="font-medium text-sm truncate">{album.name}</span>
                     <span className="text-sm text-gray-500">{album.photo_count || 0}</span>
                   </div>
-                </button>
+                  <button
+                    onClick={(e) => handleDeleteAlbumClick(album, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-opacity"
+                    title="Delete album"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -674,6 +711,48 @@ const Photos = ({ projectId, token }) => {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Album Confirmation Modal */}
+      {showDeleteAlbumConfirm && albumToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Album</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete the album <span className="font-semibold">"{albumToDelete.name}"</span>?
+              {albumToDelete.photo_count > 0 && (
+                <span className="block mt-2 text-sm text-gray-600">
+                  The {albumToDelete.photo_count} photo{albumToDelete.photo_count !== 1 ? 's' : ''} in this album will remain in "All Photos" but will no longer be grouped in this album.
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteAlbum}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete Album
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteAlbumConfirm(false);
+                  setAlbumToDelete(null);
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
