@@ -33,7 +33,10 @@ const PunchList = ({ projectId, token }) => {
         ...options.headers
       }
     });
-    if (!response.ok) throw new Error('Request failed');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(errorData.error || 'Request failed');
+    }
     return response.json();
   };
 
@@ -225,11 +228,11 @@ const PunchList = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Create Punch Item</h3>
-              <button onClick={() => setShowNewPunch(false)}>
+              <button onClick={() => setShowNewPunch(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleCreatePunch} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
@@ -238,6 +241,7 @@ const PunchList = ({ projectId, token }) => {
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Touch up paint on west wall"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -248,6 +252,7 @@ const PunchList = ({ projectId, token }) => {
                     onChange={(e) => setPunchForm({ ...punchForm, location: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Floor 3, Room 301"
+                    required
                   />
                 </div>
                 <div>
@@ -257,24 +262,49 @@ const PunchList = ({ projectId, token }) => {
                     onChange={(e) => setPunchForm({ ...punchForm, trade: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Painting"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={punchForm.priority}
+                    onChange={(e) => setPunchForm({ ...punchForm, priority: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date (optional)</label>
+                  <input
+                    type="date"
+                    value={punchForm.due_date}
+                    onChange={(e) => setPunchForm({ ...punchForm, due_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleCreatePunch}
+                  type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Create
+                  Create Punch Item
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowNewPunch(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
