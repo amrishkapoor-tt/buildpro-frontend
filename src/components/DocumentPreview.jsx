@@ -11,7 +11,7 @@ const DocumentPreview = ({ document, token, onClose }) => {
 
   const renderPreview = () => {
     const mimeType = document.mime_type || '';
-    const previewUrl = `${API_URL}/documents/${document.id}/preview`;
+    const previewUrl = `${API_URL}/documents/${document.id}/preview?token=${token}`;
 
     // Image preview
     if (mimeType.startsWith('image/')) {
@@ -84,7 +84,7 @@ const DocumentPreview = ({ document, token, onClose }) => {
           </button>
           <button
             onClick={() => {
-              const previewUrl = `${API_URL}/documents/${document.id}/preview`;
+              const previewUrl = `${API_URL}/documents/${document.id}/preview?token=${token}`;
               window.open(previewUrl, '_blank');
             }}
             className="p-2 hover:bg-gray-700 rounded"
