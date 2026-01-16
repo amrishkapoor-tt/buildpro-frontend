@@ -491,7 +491,7 @@ const Dashboard = ({ projectId, project, token, onNavigate }) => {
                       <Icon className="w-4 h-4 text-gray-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">{event.description}</p>
+                      <p className="text-sm text-gray-900">{event.event_data?.message || `${event.event_type} on ${event.entity_type}`}</p>
                       <div className="text-xs text-gray-600 mt-1">
                         {event.user_name} • {formatTimeAgo(event.created_at)}
                       </div>
