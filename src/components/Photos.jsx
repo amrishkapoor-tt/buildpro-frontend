@@ -168,6 +168,21 @@ const Photos = ({ projectId, token }) => {
     }
   };
 
+  const handleDeletePhoto = async (photoId, photoTitle) => {
+    if (!window.confirm(`Delete photo "${photoTitle}"?`)) return;
+
+    try {
+      await apiCall(`/photos/${photoId}`, {
+        method: 'DELETE'
+      });
+      setShowPhotoDetail(false);
+      setSelectedPhoto(null);
+      loadPhotos();
+    } catch (error) {
+      alert('Failed to delete photo: ' + error.message);
+    }
+  };
+
   const filteredPhotos = photos.filter(photo => {
     const matchesAlbum = !selectedAlbum || photo.album_id === selectedAlbum.id;
     const matchesTag = !filterTag || (photo.tags && photo.tags.includes(filterTag));
@@ -289,35 +304,49 @@ const Photos = ({ projectId, token }) => {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {filteredPhotos.map(photo => (
-                  <div
-                    key={photo.id}
-                    onClick={() => loadPhotoDetail(photo.id)}
-                    className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
-                      <Image className="w-12 h-12 text-white opacity-50" />
-                    </div>
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all flex flex-col justify-end p-3">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <p className="text-white font-medium text-sm truncate">{photo.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {photo.location && (
-                            <span className="flex items-center gap-1 text-xs text-white">
-                              <MapPin className="w-3 h-3" />
-                            </span>
-                          )}
-                          {photo.tags && photo.tags.length > 0 && (
-                            <span className="flex items-center gap-1 text-xs text-white">
-                              <Tag className="w-3 h-3" />
-                              {photo.tags.length}
-                            </span>
-                          )}
+                {filteredPhotos.map(photo => {
+                  const photoUrl = photo.file_url || `${API_URL.replace('/api/v1', '')}/${photo.file_path}`;
+                  return (
+                    <div
+                      key={photo.id}
+                      onClick={() => loadPhotoDetail(photo.id)}
+                      className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                    >
+                      {photoUrl ? (
+                        <img
+                          src={photoUrl}
+                          alt={photo.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
+                        <Image className="w-12 h-12 text-white opacity-50" />
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-60 transition-all flex flex-col justify-end p-3">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="text-white font-medium text-sm truncate">{photo.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {photo.location && (
+                              <span className="flex items-center gap-1 text-xs text-white">
+                                <MapPin className="w-3 h-3" />
+                              </span>
+                            )}
+                            {photo.tags && photo.tags.length > 0 && (
+                              <span className="flex items-center gap-1 text-xs text-white">
+                                <Tag className="w-3 h-3" />
+                                {photo.tags.length}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -483,8 +512,16 @@ const Photos = ({ projectId, token }) => {
                 <button
                   onClick={() => setShowLinkModal(true)}
                   className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                  title="Link to item"
                 >
                   <Link2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleDeletePhoto(selectedPhoto.id, selectedPhoto.title)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded"
+                  title="Delete photo"
+                >
+                  <Trash2 className="w-5 h-5" />
                 </button>
                 <button onClick={() => setShowPhotoDetail(false)}>
                   <X className="w-6 h-6 text-gray-400" />
@@ -495,9 +532,27 @@ const Photos = ({ projectId, token }) => {
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                  <div className="aspect-video bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center">
-                    <Image className="w-24 h-24 text-white opacity-50" />
-                  </div>
+                  {(() => {
+                    const photoUrl = selectedPhoto.file_url || `${API_URL.replace('/api/v1', '')}/${selectedPhoto.file_path}`;
+                    return (
+                      <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                        {photoUrl ? (
+                          <img
+                            src={photoUrl}
+                            alt={selectedPhoto.title}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="w-full h-full hidden items-center justify-center bg-gradient-to-br from-blue-400 to-purple-500">
+                          <Image className="w-24 h-24 text-white opacity-50" />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="space-y-4">
                   <div>
