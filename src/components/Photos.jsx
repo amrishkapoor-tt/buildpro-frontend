@@ -147,8 +147,8 @@ const Photos = ({ projectId, token }) => {
     if (!selectedPhoto || !linkForm.target_id) return;
 
     try {
-      const metadata = linkForm.target_type === 'drawing_sheet' 
-        ? { x: parseInt(linkForm.coordinates.x), y: parseInt(linkForm.coordinates.y) }
+      const metadata = linkForm.target_type === 'drawing_sheet'
+        ? { x: parseInt(linkForm.coordinates.x, 10) || 0, y: parseInt(linkForm.coordinates.y, 10) || 0 }
         : {};
 
       await apiCall(`/photos/${selectedPhoto.id}/link`, {
