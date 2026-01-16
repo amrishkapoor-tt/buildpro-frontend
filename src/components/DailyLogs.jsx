@@ -30,7 +30,10 @@ const DailyLogs = ({ projectId, token }) => {
         ...options.headers
       }
     });
-    if (!response.ok) throw new Error('Request failed');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(errorData.error || 'Request failed');
+    }
     return response.json();
   };
 
@@ -158,11 +161,11 @@ const DailyLogs = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Create Daily Log</h3>
-              <button onClick={() => setShowNewLog(false)}>
+              <button onClick={() => setShowNewLog(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleCreateLog} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input
@@ -170,6 +173,7 @@ const DailyLogs = ({ projectId, token }) => {
                   value={logForm.log_date}
                   onChange={(e) => setLogForm({ ...logForm, log_date: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -203,23 +207,35 @@ const DailyLogs = ({ projectId, token }) => {
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Describe work completed today..."
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delays (if any)</label>
+                <textarea
+                  value={logForm.delays}
+                  onChange={(e) => setLogForm({ ...logForm, delays: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Any delays or issues encountered..."
                 />
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleCreateLog}
+                  type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Create Log
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowNewLog(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
