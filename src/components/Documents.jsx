@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderOpen, Upload, FileText, X } from 'lucide-react';
 
-const API_URL = 'https://buildpro-api-xyz.onrender.com/api/v1';
+const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Documents = ({ projectId, token }) => {
   const [documents, setDocuments] = useState([]);
