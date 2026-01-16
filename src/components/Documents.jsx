@@ -41,6 +41,7 @@ const Documents = ({ projectId, token }) => {
   const [previewDoc, setPreviewDoc] = useState(null);
   const [linkDoc, setLinkDoc] = useState(null);
   const [showFolderTree, setShowFolderTree] = useState(true);
+  const [documentLinks, setDocumentLinks] = useState({}); // Map of documentId -> links array
 
   useEffect(() => {
     if (projectId) {
@@ -85,12 +86,40 @@ const Documents = ({ projectId, token }) => {
       });
       if (!response.ok) throw new Error('Failed to load documents');
       const data = await response.json();
-      setDocuments(data.documents || []);
+      const docs = data.documents || [];
+      setDocuments(docs);
+
+      // Load links for all documents
+      loadDocumentLinks(docs);
     } catch (error) {
       console.error('Failed to load documents:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadDocumentLinks = async (docs) => {
+    const linksMap = {};
+
+    // Load links for all documents in parallel
+    await Promise.all(
+      docs.map(async (doc) => {
+        try {
+          const response = await fetch(`${API_URL}/documents/${doc.id}/links`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            linksMap[doc.id] = data.links || [];
+          }
+        } catch (error) {
+          console.error(`Failed to load links for ${doc.id}:`, error);
+          linksMap[doc.id] = [];
+        }
+      })
+    );
+
+    setDocumentLinks(linksMap);
   };
 
   const updateBreadcrumbs = (folderId, folderList) => {
@@ -304,6 +333,21 @@ const Documents = ({ projectId, token }) => {
       'Safety Documents': 'bg-red-100 text-red-800'
     };
     return colors[category] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatLinkDisplay = (link) => {
+    const typeMap = {
+      'rfi': 'RFI',
+      'submittal': 'Submittal',
+      'punch_item': 'Punch Item',
+      'task': 'Task',
+      'issue': 'Issue',
+      'observation': 'Observation',
+      'daily_log': 'Daily Log'
+    };
+    const typeName = typeMap[link.target_type] || link.target_type;
+    const shortId = link.target_id.substring(0, 8);
+    return `${typeName} (${shortId})`;
   };
 
   return (
@@ -651,6 +695,17 @@ const Documents = ({ projectId, token }) => {
                                 </span>
                               ))}
                             </div>
+                            {documentLinks[doc.id] && documentLinks[doc.id].length > 0 && (
+                              <div className="mt-2 text-xs text-gray-600">
+                                <span className="font-medium">Links: </span>
+                                {documentLinks[doc.id].map((link, idx) => (
+                                  <span key={link.id}>
+                                    {idx > 0 && ', '}
+                                    <span className="text-indigo-600">{formatLinkDisplay(link)}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
