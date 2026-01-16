@@ -35,7 +35,10 @@ const Financials = ({ projectId, token }) => {
         ...options.headers
       }
     });
-    if (!response.ok) throw new Error('Request failed');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(errorData.error || 'Request failed');
+    }
     return response.json();
   };
 
@@ -420,11 +423,11 @@ const Financials = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Add Budget Line</h3>
-              <button onClick={() => setShowNewBudgetLine(false)}>
+              <button onClick={() => setShowNewBudgetLine(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleCreateBudgetLine} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cost Code</label>
                 <input
@@ -432,6 +435,7 @@ const Financials = ({ projectId, token }) => {
                   onChange={(e) => setBudgetForm({ ...budgetForm, cost_code: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="01-100"
+                  required
                 />
               </div>
               <div>
@@ -441,6 +445,7 @@ const Financials = ({ projectId, token }) => {
                   onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Site Preparation"
+                  required
                 />
               </div>
               <div>
@@ -451,23 +456,98 @@ const Financials = ({ projectId, token }) => {
                   onChange={(e) => setBudgetForm({ ...budgetForm, budgeted_amount: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="250000"
+                  required
                 />
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleCreateBudgetLine}
+                  type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Add
+                  Add Budget Line
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowNewBudgetLine(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showNewCommitment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">New Commitment</h3>
+              <button onClick={() => setShowNewCommitment(false)} type="button">
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
             </div>
+            <form onSubmit={handleCreateCommitment} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Commitment Number</label>
+                <input
+                  value={commitmentForm.commitment_number}
+                  onChange={(e) => setCommitmentForm({ ...commitmentForm, commitment_number: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="PO-001"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  value={commitmentForm.title}
+                  onChange={(e) => setCommitmentForm({ ...commitmentForm, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Concrete Subcontract"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={commitmentForm.type}
+                  onChange={(e) => setCommitmentForm({ ...commitmentForm, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="purchase_order">Purchase Order</option>
+                  <option value="subcontract">Subcontract</option>
+                  <option value="service_agreement">Service Agreement</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+                <input
+                  type="number"
+                  value={commitmentForm.total_amount}
+                  onChange={(e) => setCommitmentForm({ ...commitmentForm, total_amount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="250000"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create Commitment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewCommitment(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -477,11 +557,11 @@ const Financials = ({ projectId, token }) => {
           <div className="bg-white rounded-lg max-w-2xl w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Create Change Event</h3>
-              <button onClick={() => setShowNewChangeEvent(false)}>
+              <button onClick={() => setShowNewChangeEvent(false)} type="button">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
-            <div className="space-y-4">
+            <form onSubmit={handleCreateChangeEvent} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Event Number</label>
                 <input
@@ -489,6 +569,7 @@ const Financials = ({ projectId, token }) => {
                   onChange={(e) => setChangeEventForm({ ...changeEventForm, event_number: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="CE-001"
+                  required
                 />
               </div>
               <div>
@@ -498,6 +579,7 @@ const Financials = ({ projectId, token }) => {
                   onChange={(e) => setChangeEventForm({ ...changeEventForm, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Additional waterproofing required"
+                  required
                 />
               </div>
               <div>
@@ -533,19 +615,20 @@ const Financials = ({ projectId, token }) => {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={handleCreateChangeEvent}
+                  type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  Create
+                  Create Change Event
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowNewChangeEvent(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
