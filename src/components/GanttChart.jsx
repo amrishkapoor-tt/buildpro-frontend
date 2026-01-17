@@ -49,10 +49,14 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     endDate.setDate(endDate.getDate() + 56); // 8 weeks after
   } else {
     // Show 6 months centered on center date
+    // For month view, normalize to full month boundaries
     startDate = new Date(center);
     startDate.setMonth(startDate.getMonth() - 3);
+    startDate.setDate(1); // Start from 1st of the month
+
     endDate = new Date(center);
-    endDate.setMonth(endDate.getMonth() + 3);
+    endDate.setMonth(endDate.getMonth() + 3 + 1); // Go to next month
+    endDate.setDate(0); // Last day of previous month
   }
 
   // Normalize dates to start of day
@@ -93,19 +97,22 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
         currentDate.setDate(currentDate.getDate() + 7);
       }
     } else {
+      // Month view - always start from 1st of each month
       while (currentDate <= endDate) {
-        const monthStart = new Date(currentDate);
+        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
         const actualMonthEnd = monthEnd > endDate ? endDate : monthEnd;
         const daysInMonth = Math.ceil((actualMonthEnd - monthStart) / (1000 * 60 * 60 * 24)) + 1;
 
         periods.push({
-          label: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          date: new Date(currentDate),
+          label: monthStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          date: new Date(monthStart),
           days: daysInMonth
         });
-        currentDate.setMonth(currentDate.getMonth() + 1);
+
+        // Move to first day of next month
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
       }
     }
 
