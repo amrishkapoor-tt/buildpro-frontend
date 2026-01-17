@@ -86,17 +86,22 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
   const periods = generateTimePeriods();
 
-  // Pixel width per period based on scale
-  const periodWidth = scale === 'day' ? 40 : scale === 'week' ? 80 : 120;
+  // Base pixel width per period based on scale
+  const basePeriodWidth = scale === 'day' ? 40 : scale === 'week' ? 120 : 150;
 
   // Days per period based on scale
   const daysPerPeriod = scale === 'day' ? 1 : scale === 'week' ? 7 : 30;
 
-  // Pixel width per day
-  const pixelsPerDay = periodWidth / daysPerPeriod;
+  // Calculate timeline width - ensure minimum width for proper display
+  const calculatedWidth = periods.length * basePeriodWidth;
+  const minTimelineWidth = 1200; // Minimum width to fill screen
+  const timelineWidth = Math.max(calculatedWidth, minTimelineWidth);
 
-  // Total timeline width in pixels
-  const timelineWidth = periods.length * periodWidth;
+  // Adjust period width to fill the timeline evenly
+  const periodWidth = timelineWidth / periods.length;
+
+  // Pixel width per day (based on actual period width)
+  const pixelsPerDay = periodWidth / daysPerPeriod;
 
   // Calculate task position and width in pixels
   const getTaskStyle = (task) => {
@@ -258,11 +263,19 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (today < startDate || today > endDate) {
+    // Normalize comparison dates to midnight
+    const normalizedStart = new Date(startDate);
+    normalizedStart.setHours(0, 0, 0, 0);
+
+    const normalizedEnd = new Date(endDate);
+    normalizedEnd.setHours(23, 59, 59, 999);
+
+    // Check if today is within the visible range
+    if (today < normalizedStart || today > normalizedEnd) {
       return null;
     }
 
-    const daysFromStart = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+    const daysFromStart = Math.ceil((today - normalizedStart) / (1000 * 60 * 60 * 24));
     return daysFromStart * pixelsPerDay;
   };
 
