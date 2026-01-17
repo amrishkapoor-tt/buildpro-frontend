@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-re
 
 const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const [scale, setScale] = useState('week'); // 'day', 'week', 'month'
-  const [viewWindow, setViewWindow] = useState({ start: null, end: null }); // Current visible date range
   const [statusFilter, setStatusFilter] = useState({
     critical: true,
     in_progress: true,
@@ -11,11 +10,6 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     not_started: true
   });
   const containerRef = useRef(null);
-
-  // Reset view window when scale changes
-  useEffect(() => {
-    setViewWindow({ start: null, end: null });
-  }, [scale]);
 
   if (!ganttData || !tasks || tasks.length === 0) {
     return (
@@ -34,15 +28,11 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const projectEndDate = ganttData.end_date ? new Date(ganttData.end_date) : new Date();
 
   // Add padding: 2 weeks before and after for better context
-  const paddedStartDate = new Date(projectStartDate);
-  paddedStartDate.setDate(paddedStartDate.getDate() - 14);
+  const startDate = new Date(projectStartDate);
+  startDate.setDate(startDate.getDate() - 14);
 
-  const paddedEndDate = new Date(projectEndDate);
-  paddedEndDate.setDate(paddedEndDate.getDate() + 14);
-
-  // Use view window if set, otherwise use full padded range
-  const startDate = viewWindow.start || paddedStartDate;
-  const endDate = viewWindow.end || paddedEndDate;
+  const endDate = new Date(projectEndDate);
+  endDate.setDate(endDate.getDate() + 14);
 
   // Calculate total days
   const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) || 1;
@@ -87,14 +77,15 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const periods = generateTimePeriods();
 
   // Base pixel width per period based on scale
-  const basePeriodWidth = scale === 'day' ? 40 : scale === 'week' ? 120 : 150;
+  // Increased significantly for better screen filling, especially month view
+  const basePeriodWidth = scale === 'day' ? 50 : scale === 'week' ? 150 : 250;
 
   // Days per period based on scale
   const daysPerPeriod = scale === 'day' ? 1 : scale === 'week' ? 7 : 30;
 
-  // Calculate timeline width - ensure minimum width for proper display
+  // Calculate timeline width - ensure generous minimum width for proper display
   const calculatedWidth = periods.length * basePeriodWidth;
-  const minTimelineWidth = 1200; // Minimum width to fill screen
+  const minTimelineWidth = 2400; // Increased minimum width to fill larger screens
   const timelineWidth = Math.max(calculatedWidth, minTimelineWidth);
 
   // Adjust period width to fill the timeline evenly
@@ -195,65 +186,6 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     return true;
   });
 
-  // Calculate appropriate window size for each scale
-  const calculateWindowSize = () => {
-    if (scale === 'day') {
-      return 30; // 30 days
-    } else if (scale === 'week') {
-      return 84; // 12 weeks = 84 days
-    } else {
-      return 180; // 6 months = ~180 days
-    }
-  };
-
-  // Navigation functions
-  const navigatePeriod = (direction) => {
-    const currentStart = viewWindow.start || paddedStartDate;
-    const windowSize = calculateWindowSize();
-
-    const newStart = new Date(currentStart);
-
-    if (scale === 'day') {
-      newStart.setDate(newStart.getDate() + (direction * 14)); // Move by 2 weeks
-    } else if (scale === 'week') {
-      newStart.setDate(newStart.getDate() + (direction * 28)); // Move by 4 weeks
-    } else {
-      newStart.setMonth(newStart.getMonth() + (direction * 2)); // Move by 2 months
-    }
-
-    const newEnd = new Date(newStart);
-    newEnd.setDate(newEnd.getDate() + windowSize);
-
-    setViewWindow({ start: newStart, end: newEnd });
-  };
-
-  const goToToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const windowSize = calculateWindowSize();
-    const halfWindow = Math.floor(windowSize / 2);
-
-    const newStart = new Date(today);
-    newStart.setDate(newStart.getDate() - halfWindow);
-
-    const newEnd = new Date(today);
-    newEnd.setDate(newEnd.getDate() + halfWindow);
-
-    setViewWindow({ start: newStart, end: newEnd });
-  };
-
-  // Check if today is in current view
-  const isTodayInView = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today >= startDate && today <= endDate;
-  };
-
-  const resetView = () => {
-    setViewWindow({ start: null, end: null });
-  };
-
   const toggleStatusFilter = (status) => {
     setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }));
   };
@@ -284,75 +216,39 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Controls */}
-      <div className="flex flex-col gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50">
-        {/* Top row: Scale and Navigation */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 font-medium">View:</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setScale('day')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  scale === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Day
-              </button>
-              <button
-                onClick={() => setScale('week')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  scale === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Week
-              </button>
-              <button
-                onClick={() => setScale('month')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  scale === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }`}
-              >
-                Month
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-gray-50">
+        {/* Scale Selector */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 font-medium">View:</span>
+          <div className="flex items-center gap-1">
             <button
-              onClick={() => navigatePeriod(-1)}
-              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-              title="Previous period"
-            >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <button
-              onClick={goToToday}
+              onClick={() => setScale('day')}
               className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                isTodayInView()
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                scale === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
               }`}
             >
-              Today
+              Day
             </button>
             <button
-              onClick={() => navigatePeriod(1)}
-              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-              title="Next period"
+              onClick={() => setScale('week')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                scale === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
             >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
+              Week
             </button>
             <button
-              onClick={resetView}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              title="Show full timeline"
+              onClick={() => setScale('month')}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                scale === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
             >
-              <Maximize2 className="w-4 h-4" />
+              Month
             </button>
           </div>
         </div>
 
-        {/* Bottom row: Legend/Filters */}
+        {/* Filter Buttons */}
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 font-medium">Filter:</span>
           <div className="flex items-center gap-3">
