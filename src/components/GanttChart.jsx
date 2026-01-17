@@ -12,6 +12,11 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   });
   const containerRef = useRef(null);
 
+  // Reset view window when scale changes
+  useEffect(() => {
+    setViewWindow({ start: null, end: null });
+  }, [scale]);
+
   if (!ganttData || !tasks || tasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -184,11 +189,6 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
     return true;
   });
-
-  // Reset view window when scale changes
-  useEffect(() => {
-    setViewWindow({ start: null, end: null });
-  }, [scale]);
 
   // Calculate appropriate window size for each scale
   const calculateWindowSize = () => {
