@@ -46,7 +46,8 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
       while (currentDate <= endDate) {
         periods.push({
           label: currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          date: new Date(currentDate)
+          date: new Date(currentDate),
+          days: 1
         });
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -55,17 +56,31 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
         const weekStart = new Date(currentDate);
         const weekEnd = new Date(currentDate);
         weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Calculate actual days in this week period (might be less for last week)
+        const actualWeekEnd = weekEnd > endDate ? endDate : weekEnd;
+        const daysInWeek = Math.ceil((actualWeekEnd - weekStart) / (1000 * 60 * 60 * 24)) + 1;
+
         periods.push({
           label: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          date: new Date(currentDate)
+          date: new Date(currentDate),
+          days: daysInWeek
         });
         currentDate.setDate(currentDate.getDate() + 7);
       }
     } else {
       while (currentDate <= endDate) {
+        const monthStart = new Date(currentDate);
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); // Last day of month
+
+        // Calculate actual days in this month period (might be less for last month)
+        const actualMonthEnd = monthEnd > endDate ? endDate : monthEnd;
+        const daysInMonth = Math.ceil((actualMonthEnd - monthStart) / (1000 * 60 * 60 * 24)) + 1;
+
         periods.push({
           label: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          date: new Date(currentDate)
+          date: new Date(currentDate),
+          days: daysInMonth
         });
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
@@ -76,23 +91,24 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
   const periods = generateTimePeriods();
 
-  // Base pixel width per period based on scale
-  // Increased significantly for better screen filling, especially month view
-  const basePeriodWidth = scale === 'day' ? 50 : scale === 'week' ? 150 : 250;
+  // Calculate total days in all periods
+  const totalPeriodDays = periods.reduce((sum, period) => sum + period.days, 0);
 
-  // Days per period based on scale
-  const daysPerPeriod = scale === 'day' ? 1 : scale === 'week' ? 7 : 30;
+  // Base pixel width per day based on scale
+  const basePixelsPerDay = scale === 'day' ? 50 : scale === 'week' ? 20 : 10;
 
-  // Calculate timeline width - ensure generous minimum width for proper display
-  const calculatedWidth = periods.length * basePeriodWidth;
-  const minTimelineWidth = 2400; // Increased minimum width to fill larger screens
+  // Calculate timeline width based on total days
+  const calculatedWidth = totalPeriodDays * basePixelsPerDay;
+  const minTimelineWidth = 2400; // Minimum width to fill larger screens
   const timelineWidth = Math.max(calculatedWidth, minTimelineWidth);
 
-  // Adjust period width to fill the timeline evenly
-  const periodWidth = timelineWidth / periods.length;
+  // Calculate actual pixels per day (may be adjusted to meet minimum width)
+  const pixelsPerDay = timelineWidth / totalPeriodDays;
 
-  // Pixel width per day (based on actual period width)
-  const pixelsPerDay = periodWidth / daysPerPeriod;
+  // Calculate width for each period based on its actual days
+  const getPeriodWidth = (period) => {
+    return period.days * pixelsPerDay;
+  };
 
   // Calculate task position and width in pixels
   const getTaskStyle = (task) => {
@@ -347,7 +363,7 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
                 <div
                   key={idx}
                   className="border-r border-gray-200 flex items-center justify-center text-xs text-gray-600 font-medium"
-                  style={{ width: `${periodWidth}px` }}
+                  style={{ width: `${getPeriodWidth(period)}px` }}
                 >
                   {period.label}
                 </div>
@@ -355,7 +371,7 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             </div>
 
             {/* Task Bars */}
-            <div className="relative">
+            <div className="relative" style={{ width: `${timelineWidth}px` }}>
               {/* Today indicator line */}
               {todayPosition !== null && (
                 <div
@@ -375,16 +391,16 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
                 const progress = getTaskProgress(task);
 
                 return (
-                  <div key={task.id} className="relative">
+                  <div key={task.id} className="relative" style={{ width: `${timelineWidth}px` }}>
                     {/* Background row */}
-                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50 relative">
+                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50 relative" style={{ width: `${timelineWidth}px` }}>
                       {/* Grid lines */}
                       <div className="absolute inset-0 flex">
-                        {periods.map((_, pIdx) => (
+                        {periods.map((period, pIdx) => (
                           <div
                             key={pIdx}
                             className="border-r border-gray-100"
-                            style={{ width: `${periodWidth}px` }}
+                            style={{ width: `${getPeriodWidth(period)}px` }}
                           />
                         ))}
                       </div>
