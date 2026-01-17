@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const PermissionContext = createContext();
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://buildpro-api.onrender.com/api/v1';
+
 export const usePermissions = () => {
   const context = useContext(PermissionContext);
   if (!context) {
@@ -35,7 +37,7 @@ export const PermissionProvider = ({ children, projectId, token }) => {
   const fetchUserRole = async () => {
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL}/api/v1/projects/${projectId}/members`,
+        `${API_URL}/projects/${projectId}/members`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
