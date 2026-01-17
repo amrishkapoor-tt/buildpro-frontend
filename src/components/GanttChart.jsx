@@ -63,20 +63,38 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   };
 
   const periods = generateTimePeriods();
-  const dayWidth = scale === 'day' ? 40 : scale === 'week' ? 80 : 120;
 
-  // Calculate task position and width
+  // Pixel width per period based on scale
+  const periodWidth = scale === 'day' ? 40 : scale === 'week' ? 80 : 120;
+
+  // Days per period based on scale
+  const daysPerPeriod = scale === 'day' ? 1 : scale === 'week' ? 7 : 30;
+
+  // Pixel width per day
+  const pixelsPerDay = periodWidth / daysPerPeriod;
+
+  // Total timeline width in pixels
+  const timelineWidth = periods.length * periodWidth;
+
+  // Calculate task position and width in pixels
   const getTaskStyle = (task) => {
     const taskStart = new Date(task.planned_start_date);
     const taskEnd = new Date(task.planned_end_date);
 
-    const daysFromStart = Math.ceil((taskStart - startDate) / (1000 * 60 * 60 * 24));
-    const taskDuration = Math.ceil((taskEnd - taskStart) / (1000 * 60 * 60 * 24)) || 1;
+    // Calculate days from project start
+    const daysFromStart = Math.max(0, Math.ceil((taskStart - startDate) / (1000 * 60 * 60 * 24)));
 
-    const left = (daysFromStart / totalDays) * 100;
-    const width = (taskDuration / totalDays) * 100;
+    // Calculate task duration in days
+    const taskDuration = Math.max(1, Math.ceil((taskEnd - taskStart) / (1000 * 60 * 60 * 24)));
 
-    return { left: `${left}%`, width: `${width}%` };
+    // Convert to pixels
+    const leftPx = daysFromStart * pixelsPerDay;
+    const widthPx = Math.max(20, taskDuration * pixelsPerDay); // Minimum 20px width for visibility
+
+    return {
+      left: `${leftPx}px`,
+      width: `${widthPx}px`
+    };
   };
 
   // Check if task is on critical path
@@ -84,12 +102,29 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     return criticalPath.some(cp => cp.task_id === taskId);
   };
 
-  // Get status color
+  // Get status color with gradients
   const getStatusColor = (status, critical) => {
-    if (critical) return 'bg-red-500';
-    if (status === 'completed') return 'bg-green-500';
-    if (status === 'in_progress') return 'bg-blue-500';
-    return 'bg-gray-400';
+    if (critical) return 'bg-gradient-to-r from-red-500 to-red-600 border border-red-700';
+    if (status === 'completed') return 'bg-gradient-to-r from-green-500 to-green-600 border border-green-700';
+    if (status === 'in_progress') return 'bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-700';
+    return 'bg-gradient-to-r from-gray-400 to-gray-500 border border-gray-600';
+  };
+
+  // Get progress percentage for in-progress tasks
+  const getTaskProgress = (task) => {
+    if (task.status !== 'in_progress') return 0;
+
+    const taskStart = new Date(task.planned_start_date);
+    const taskEnd = new Date(task.planned_end_date);
+    const today = new Date();
+
+    if (today < taskStart) return 0;
+    if (today > taskEnd) return 100;
+
+    const totalDuration = taskEnd - taskStart;
+    const elapsed = today - taskStart;
+
+    return Math.round((elapsed / totalDuration) * 100);
   };
 
   // Organize tasks by hierarchy
@@ -120,6 +155,21 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   };
 
   const hierarchicalTasks = organizeTasksByHierarchy();
+
+  // Calculate today's position for indicator line
+  const getTodayPosition = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (today < startDate || today > endDate) {
+      return null;
+    }
+
+    const daysFromStart = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+    return daysFromStart * pixelsPerDay;
+  };
+
+  const todayPosition = getTodayPosition();
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -156,16 +206,20 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span className="text-gray-700">Critical Path</span>
+              <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded border border-red-700 shadow-sm"></div>
+              <span className="text-gray-700 font-medium">Critical Path</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-500 rounded"></div>
-              <span className="text-gray-700">In Progress</span>
+              <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded border border-blue-700 shadow-sm"></div>
+              <span className="text-gray-700 font-medium">In Progress</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span className="text-gray-700">Completed</span>
+              <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded border border-green-700 shadow-sm"></div>
+              <span className="text-gray-700 font-medium">Completed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-gradient-to-r from-gray-400 to-gray-500 rounded border border-gray-600 shadow-sm"></div>
+              <span className="text-gray-700 font-medium">Not Started</span>
             </div>
           </div>
         </div>
@@ -175,42 +229,50 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
       <div className="flex-1 overflow-auto" ref={containerRef}>
         <div className="flex min-w-max">
           {/* Task Names Column */}
-          <div className="w-80 flex-shrink-0 bg-gray-50 border-r border-gray-200">
+          <div className="w-80 flex-shrink-0 bg-gray-50 border-r-2 border-gray-300 sticky left-0 z-30">
             {/* Header */}
-            <div className="h-12 flex items-center px-4 border-b border-gray-200 bg-white font-medium text-gray-900">
+            <div className="h-12 flex items-center px-4 border-b-2 border-gray-300 bg-gradient-to-b from-gray-100 to-gray-50 font-semibold text-gray-900 text-sm shadow-sm">
               Task Name
             </div>
 
             {/* Task Rows */}
-            {hierarchicalTasks.map((task) => (
-              <div
-                key={task.id}
-                className="h-12 flex items-center px-4 border-b border-gray-200 hover:bg-gray-100 cursor-pointer"
-                onClick={() => onTaskClick(task)}
-                style={{ paddingLeft: `${task.level * 20 + 16}px` }}
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {task.children && task.children.length > 0 && (
-                    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  )}
-                  <span className={`text-sm truncate ${task.children?.length > 0 ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
-                    {task.wbs_code && <span className="text-gray-400 mr-2">{task.wbs_code}</span>}
-                    {task.name}
-                  </span>
+            {hierarchicalTasks.map((task) => {
+              const critical = isCritical(task.id);
+              return (
+                <div
+                  key={task.id}
+                  className={`h-12 flex items-center px-4 border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors ${
+                    critical ? 'bg-red-50/50' : 'bg-white'
+                  }`}
+                  onClick={() => onTaskClick(task)}
+                  style={{ paddingLeft: `${task.level * 20 + 16}px` }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {task.children && task.children.length > 0 && (
+                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    )}
+                    <span className={`text-sm truncate ${task.children?.length > 0 ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                      {task.wbs_code && <span className="text-gray-400 mr-2 font-mono text-xs">{task.wbs_code}</span>}
+                      {task.name}
+                    </span>
+                    {critical && (
+                      <span className="ml-auto text-xs text-red-600 font-semibold whitespace-nowrap">CP</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Timeline Column */}
-          <div className="flex-1 min-w-max">
+          <div className="flex-shrink-0" style={{ width: `${timelineWidth}px` }}>
             {/* Timeline Header */}
             <div className="h-12 flex border-b border-gray-200 bg-white">
               {periods.map((period, idx) => (
                 <div
                   key={idx}
-                  className="border-r border-gray-200 flex items-center justify-center text-xs text-gray-600"
-                  style={{ width: `${dayWidth}px` }}
+                  className="border-r border-gray-200 flex items-center justify-center text-xs text-gray-600 font-medium"
+                  style={{ width: `${periodWidth}px` }}
                 >
                   {period.label}
                 </div>
@@ -219,36 +281,65 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
             {/* Task Bars */}
             <div className="relative">
+              {/* Today indicator line */}
+              {todayPosition !== null && (
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                  style={{ left: `${todayPosition}px` }}
+                >
+                  <div className="absolute top-0 -left-6 bg-red-500 text-white text-xs px-2 py-0.5 rounded shadow-sm">
+                    Today
+                  </div>
+                </div>
+              )}
+
               {hierarchicalTasks.map((task, idx) => {
                 const style = getTaskStyle(task);
                 const critical = isCritical(task.id);
                 const bgColor = getStatusColor(task.status, critical);
+                const progress = getTaskProgress(task);
 
                 return (
                   <div key={task.id} className="relative">
                     {/* Background row */}
-                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50">
+                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50 relative">
                       {/* Grid lines */}
                       <div className="absolute inset-0 flex">
                         {periods.map((_, pIdx) => (
                           <div
                             key={pIdx}
                             className="border-r border-gray-100"
-                            style={{ width: `${dayWidth}px` }}
+                            style={{ width: `${periodWidth}px` }}
                           />
                         ))}
                       </div>
 
                       {/* Task bar */}
                       <div
-                        className={`absolute top-2 h-8 ${bgColor} rounded flex items-center px-2 cursor-pointer hover:opacity-90 transition-opacity`}
+                        className={`absolute top-2 h-8 ${bgColor} rounded shadow-sm cursor-pointer hover:shadow-lg transition-all z-10 overflow-hidden`}
                         style={style}
                         onClick={() => onTaskClick(task)}
-                        title={`${task.name}\n${task.planned_start_date} - ${task.planned_end_date}\nDuration: ${task.duration_days} days${critical ? '\n⚠️ CRITICAL PATH' : ''}`}
+                        title={`${task.name}\n${task.planned_start_date} - ${task.planned_end_date}\nDuration: ${task.duration_days} days${task.status === 'in_progress' ? `\nProgress: ${progress}%` : ''}${critical ? '\n⚠️ CRITICAL PATH' : ''}`}
                       >
-                        <span className="text-xs text-white font-medium truncate">
-                          {task.name}
-                        </span>
+                        {/* Progress indicator for in-progress tasks */}
+                        {task.status === 'in_progress' && progress > 0 && (
+                          <div
+                            className="absolute inset-0 bg-white/20"
+                            style={{ width: `${progress}%` }}
+                          />
+                        )}
+
+                        {/* Task name */}
+                        <div className="relative px-3 py-1 flex items-center h-full">
+                          <span className="text-xs text-white font-medium truncate drop-shadow-sm">
+                            {task.name}
+                          </span>
+                          {task.status === 'in_progress' && (
+                            <span className="ml-auto text-xs text-white font-semibold opacity-90 pl-2">
+                              {progress}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
