@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 
 const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const [scale, setScale] = useState('week'); // 'day', 'week', 'month'
-  const [viewWindow, setViewWindow] = useState({ start: null, end: null }); // Current visible date range
+  const [centerDate, setCenterDate] = useState(null); // Date to center view on
   const [statusFilter, setStatusFilter] = useState({
     critical: true,
     in_progress: true,
@@ -12,10 +12,12 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   });
   const containerRef = useRef(null);
 
-  // Reset view window when scale changes
+  // Initialize center date to today
   useEffect(() => {
-    setViewWindow({ start: null, end: null });
-  }, [scale]);
+    if (!centerDate) {
+      setCenterDate(new Date());
+    }
+  }, []);
 
   if (!ganttData || !tasks || tasks.length === 0) {
     return (
@@ -29,41 +31,35 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     );
   }
 
-  // Parse dates from gantt data with padding
-  const projectStartDate = ganttData.start_date ? new Date(ganttData.start_date) : new Date();
-  const projectEndDate = ganttData.end_date ? new Date(ganttData.end_date) : new Date();
-
-  // Add padding: 2 weeks before and after for better context
-  const paddedStartDate = new Date(projectStartDate);
-  paddedStartDate.setDate(paddedStartDate.getDate() - 14);
-
-  const paddedEndDate = new Date(projectEndDate);
-  paddedEndDate.setDate(paddedEndDate.getDate() + 14);
-
-  // Use view window if set, otherwise use full padded range
+  // Calculate visible date range based on scale, centered on centerDate (or today by default)
+  const center = centerDate || new Date();
   let startDate, endDate;
 
-  if (viewWindow.start) {
-    startDate = viewWindow.start;
-    // Calculate end date based on scale
-    endDate = new Date(startDate);
-    if (scale === 'day') {
-      endDate.setDate(endDate.getDate() + 30); // Show 30 days
-    } else if (scale === 'week') {
-      endDate.setDate(endDate.getDate() + 112); // Show 16 weeks
-    } else {
-      endDate.setMonth(endDate.getMonth() + 6); // Show 6 months
-    }
-    // Don't exceed padded end
-    if (endDate > paddedEndDate) {
-      endDate = paddedEndDate;
-    }
+  if (scale === 'day') {
+    // Show 30 days centered on center date
+    startDate = new Date(center);
+    startDate.setDate(startDate.getDate() - 15);
+    endDate = new Date(center);
+    endDate.setDate(endDate.getDate() + 15);
+  } else if (scale === 'week') {
+    // Show 16 weeks centered on center date
+    startDate = new Date(center);
+    startDate.setDate(startDate.getDate() - 56); // 8 weeks before
+    endDate = new Date(center);
+    endDate.setDate(endDate.getDate() + 56); // 8 weeks after
   } else {
-    startDate = paddedStartDate;
-    endDate = paddedEndDate;
+    // Show 6 months centered on center date
+    startDate = new Date(center);
+    startDate.setMonth(startDate.getMonth() - 3);
+    endDate = new Date(center);
+    endDate.setMonth(endDate.getMonth() + 3);
   }
 
-  // Calculate total days
+  // Normalize dates to start of day
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  // Calculate total days in visible range
   const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) || 1;
 
   // Generate time periods based on scale
@@ -86,7 +82,6 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
         const weekEnd = new Date(currentDate);
         weekEnd.setDate(weekEnd.getDate() + 6);
 
-        // Calculate actual days in this week period (might be less for last week)
         const actualWeekEnd = weekEnd > endDate ? endDate : weekEnd;
         const daysInWeek = Math.ceil((actualWeekEnd - weekStart) / (1000 * 60 * 60 * 24)) + 1;
 
@@ -100,9 +95,8 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     } else {
       while (currentDate <= endDate) {
         const monthStart = new Date(currentDate);
-        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); // Last day of month
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-        // Calculate actual days in this month period (might be less for last month)
         const actualMonthEnd = monthEnd > endDate ? endDate : monthEnd;
         const daysInMonth = Math.ceil((actualMonthEnd - monthStart) / (1000 * 60 * 60 * 24)) + 1;
 
@@ -120,43 +114,57 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
   const periods = generateTimePeriods();
 
-  // Calculate total days in all periods
-  const totalPeriodDays = periods.reduce((sum, period) => sum + period.days, 0);
+  // Fixed timeline width - no horizontal scrolling, fit to container
+  // Use container width if available, otherwise use a reasonable default
+  const timelineWidth = containerRef.current?.offsetWidth || 1200;
+  const taskNameColumnWidth = 320;
+  const availableTimelineWidth = Math.max(timelineWidth - taskNameColumnWidth, 800);
 
-  // Base pixel width per day based on scale
-  const basePixelsPerDay = scale === 'day' ? 50 : scale === 'week' ? 20 : 10;
-
-  // Calculate timeline width based on total days
-  const calculatedWidth = totalPeriodDays * basePixelsPerDay;
-  const minTimelineWidth = 2400; // Minimum width to fill larger screens
-  const timelineWidth = Math.max(calculatedWidth, minTimelineWidth);
-
-  // Calculate actual pixels per day (may be adjusted to meet minimum width)
-  const pixelsPerDay = timelineWidth / totalPeriodDays;
+  // Calculate pixels per day to fill available width
+  const pixelsPerDay = availableTimelineWidth / totalDays;
 
   // Calculate width for each period based on its actual days
   const getPeriodWidth = (period) => {
     return period.days * pixelsPerDay;
   };
 
-  // Calculate task position and width in pixels
+  // Filter tasks to only show those that overlap with visible date range
+  const getVisibleTasks = () => {
+    return tasks.filter(task => {
+      const taskStart = new Date(task.planned_start_date);
+      const taskEnd = new Date(task.planned_end_date);
+
+      // Task is visible if it overlaps with [startDate, endDate]
+      return taskStart <= endDate && taskEnd >= startDate;
+    });
+  };
+
+  const visibleTasks = getVisibleTasks();
+
+  // Calculate task position and width, clipped to visible boundaries
   const getTaskStyle = (task) => {
     const taskStart = new Date(task.planned_start_date);
     const taskEnd = new Date(task.planned_end_date);
 
-    // Calculate days from project start
-    const daysFromStart = Math.max(0, Math.ceil((taskStart - startDate) / (1000 * 60 * 60 * 24)));
+    // Clip task to visible boundaries
+    const visibleStart = taskStart < startDate ? startDate : taskStart;
+    const visibleEnd = taskEnd > endDate ? endDate : taskEnd;
 
-    // Calculate task duration in days
-    const taskDuration = Math.max(1, Math.ceil((taskEnd - taskStart) / (1000 * 60 * 60 * 24)));
+    // Calculate days from visible start
+    const daysFromStart = Math.max(0, Math.ceil((visibleStart - startDate) / (1000 * 60 * 60 * 24)));
+
+    // Calculate visible duration in days
+    const visibleDuration = Math.max(1, Math.ceil((visibleEnd - visibleStart) / (1000 * 60 * 60 * 24)));
 
     // Convert to pixels
     const leftPx = daysFromStart * pixelsPerDay;
-    const widthPx = Math.max(20, taskDuration * pixelsPerDay); // Minimum 20px width for visibility
+    const widthPx = Math.max(20, visibleDuration * pixelsPerDay);
 
     return {
       left: `${leftPx}px`,
-      width: `${widthPx}px`
+      width: `${widthPx}px`,
+      isClippedStart: taskStart < startDate,
+      isClippedEnd: taskEnd > endDate
     };
   };
 
@@ -192,10 +200,10 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
   // Organize tasks by hierarchy
   const organizeTasksByHierarchy = () => {
-    const taskMap = new Map(tasks.map(t => [t.id, { ...t, children: [] }]));
+    const taskMap = new Map(visibleTasks.map(t => [t.id, { ...t, children: [] }]));
     const rootTasks = [];
 
-    tasks.forEach(task => {
+    visibleTasks.forEach(task => {
       if (task.parent_task_id) {
         const parent = taskMap.get(task.parent_task_id);
         if (parent) {
@@ -235,44 +243,9 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }));
   };
 
-  // Navigation functions
-  const navigatePeriod = (direction) => {
-    const currentStart = viewWindow.start || paddedStartDate;
-
-    const newStart = new Date(currentStart);
-
-    if (scale === 'day') {
-      newStart.setDate(newStart.getDate() + (direction * 7)); // Move by 1 week
-    } else if (scale === 'week') {
-      newStart.setDate(newStart.getDate() + (direction * 28)); // Move by 4 weeks
-    } else {
-      newStart.setMonth(newStart.getMonth() + (direction * 3)); // Move by 3 months
-    }
-
-    // Don't navigate beyond the padded boundaries
-    if (newStart < paddedStartDate) {
-      return; // Don't go before start
-    }
-
-    setViewWindow({ start: newStart, end: null }); // Let it calculate end based on start
-  };
-
+  // Go to today
   const goToToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Center view on today based on scale
-    const newStart = new Date(today);
-
-    if (scale === 'day') {
-      newStart.setDate(newStart.getDate() - 15); // Show 15 days before and after
-    } else if (scale === 'week') {
-      newStart.setDate(newStart.getDate() - 56); // Show 8 weeks before and after
-    } else {
-      newStart.setMonth(newStart.getMonth() - 3); // Show 3 months before and after
-    }
-
-    setViewWindow({ start: newStart, end: null });
+    setCenterDate(new Date());
   };
 
   // Check if today is in current view
@@ -282,23 +255,17 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     return today >= startDate && today <= endDate;
   };
 
-  const resetView = () => {
-    setViewWindow({ start: null, end: null });
-  };
-
   // Calculate today's position for indicator line
   const getTodayPosition = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Normalize comparison dates to midnight
     const normalizedStart = new Date(startDate);
     normalizedStart.setHours(0, 0, 0, 0);
 
     const normalizedEnd = new Date(endDate);
     normalizedEnd.setHours(23, 59, 59, 999);
 
-    // Check if today is within the visible range
     if (today < normalizedStart || today > normalizedEnd) {
       return null;
     }
@@ -310,10 +277,10 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const todayPosition = getTodayPosition();
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-white" ref={containerRef}>
       {/* Controls */}
       <div className="flex flex-col gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50">
-        {/* Top row: Scale and Navigation */}
+        {/* Top row: Scale and Today */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-600 font-medium">View:</span>
@@ -347,15 +314,8 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigatePeriod(-1)}
-              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-              title="Previous period"
-            >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <button
               onClick={goToToday}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                 isTodayInView()
                   ? 'bg-blue-600 text-white'
                   : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
@@ -363,24 +323,10 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             >
               Today
             </button>
-            <button
-              onClick={() => navigatePeriod(1)}
-              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
-              title="Next period"
-            >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-            <button
-              onClick={resetView}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-              title="Show full timeline"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
-        {/* Bottom row: Legend/Filters */}
+        {/* Bottom row: Filters */}
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-600 font-medium">Filter:</span>
           <div className="flex items-center gap-3">
@@ -432,11 +378,11 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
         </div>
       </div>
 
-      {/* Gantt Chart */}
-      <div className="flex-1 overflow-auto" ref={containerRef}>
-        <div className="flex min-w-max">
+      {/* Gantt Chart - No horizontal scroll */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50">
+        <div className="flex min-h-full">
           {/* Task Names Column */}
-          <div className="w-80 flex-shrink-0 bg-gray-50 border-r-2 border-gray-300 sticky left-0 z-30">
+          <div className="flex-shrink-0 bg-gray-50 border-r-2 border-gray-300 sticky left-0 z-30" style={{ width: `${taskNameColumnWidth}px` }}>
             {/* Header */}
             <div className="h-12 flex items-center px-4 border-b-2 border-gray-300 bg-gradient-to-b from-gray-100 to-gray-50 font-semibold text-gray-900 text-sm shadow-sm">
               Task Name
@@ -455,9 +401,6 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
                   style={{ paddingLeft: `${task.level * 20 + 16}px` }}
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {task.children && task.children.length > 0 && (
-                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    )}
                     <span className={`text-sm truncate ${task.children?.length > 0 ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
                       {task.wbs_code && <span className="text-gray-400 mr-2 font-mono text-xs">{task.wbs_code}</span>}
                       {task.name}
@@ -471,8 +414,8 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             })}
           </div>
 
-          {/* Timeline Column */}
-          <div className="flex-shrink-0" style={{ width: `${timelineWidth}px` }}>
+          {/* Timeline Column - Fixed width, no scroll */}
+          <div className="flex-shrink-0" style={{ width: `${availableTimelineWidth}px` }}>
             {/* Timeline Header */}
             <div className="h-12 flex border-b border-gray-200 bg-white">
               {periods.map((period, idx) => (
@@ -487,7 +430,7 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             </div>
 
             {/* Task Bars */}
-            <div className="relative" style={{ width: `${timelineWidth}px` }}>
+            <div className="relative" style={{ width: `${availableTimelineWidth}px` }}>
               {/* Today indicator line */}
               {todayPosition !== null && (
                 <div
@@ -500,16 +443,16 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
                 </div>
               )}
 
-              {filteredTasks.map((task, idx) => {
+              {filteredTasks.map((task) => {
                 const style = getTaskStyle(task);
                 const critical = isCritical(task.id);
                 const bgColor = getStatusColor(task.status, critical);
                 const progress = getTaskProgress(task);
 
                 return (
-                  <div key={task.id} className="relative" style={{ width: `${timelineWidth}px` }}>
+                  <div key={task.id} className="relative" style={{ width: `${availableTimelineWidth}px` }}>
                     {/* Background row */}
-                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50 relative" style={{ width: `${timelineWidth}px` }}>
+                    <div className="h-12 border-b border-gray-200 hover:bg-blue-50 relative" style={{ width: `${availableTimelineWidth}px` }}>
                       {/* Grid lines */}
                       <div className="absolute inset-0 flex">
                         {periods.map((period, pIdx) => (
@@ -523,8 +466,10 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
                       {/* Task bar */}
                       <div
-                        className={`absolute top-2 h-8 ${bgColor} rounded shadow-sm cursor-pointer hover:shadow-lg transition-all z-10 overflow-hidden`}
-                        style={style}
+                        className={`absolute top-2 h-8 ${bgColor} rounded shadow-sm cursor-pointer hover:shadow-lg transition-all z-10 overflow-hidden ${
+                          style.isClippedStart ? 'rounded-l-none' : ''
+                        } ${style.isClippedEnd ? 'rounded-r-none' : ''}`}
+                        style={{ left: style.left, width: style.width }}
                         onClick={() => onTaskClick(task)}
                         title={`${task.name}\n${task.planned_start_date} - ${task.planned_end_date}\nDuration: ${task.duration_days} days${task.status === 'in_progress' ? `\nProgress: ${progress}%` : ''}${critical ? '\n⚠️ CRITICAL PATH' : ''}`}
                       >
@@ -561,11 +506,11 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
       <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div>
-            Showing <span className="font-semibold text-gray-900">{filteredTasks.length}</span> of <span className="font-semibold text-gray-900">{hierarchicalTasks.length}</span> tasks
+            Showing <span className="font-semibold text-gray-900">{filteredTasks.length}</span> of <span className="font-semibold text-gray-900">{visibleTasks.length}</span> tasks in view
           </div>
           <div className="flex items-center gap-4">
             <div>
-              <span className="text-gray-500">Timeline:</span> {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              <span className="text-gray-500">View Range:</span> {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
             <div>
               <span className="text-gray-500">Duration:</span> <span className="font-semibold text-gray-900">{totalDays}</span> days
