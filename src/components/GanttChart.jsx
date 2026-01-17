@@ -185,43 +185,64 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     return true;
   });
 
+  // Reset view window when scale changes
+  useEffect(() => {
+    setViewWindow({ start: null, end: null });
+  }, [scale]);
+
+  // Calculate appropriate window size for each scale
+  const calculateWindowSize = () => {
+    if (scale === 'day') {
+      return 30; // 30 days
+    } else if (scale === 'week') {
+      return 84; // 12 weeks = 84 days
+    } else {
+      return 180; // 6 months = ~180 days
+    }
+  };
+
   // Navigation functions
   const navigatePeriod = (direction) => {
-    const current = viewWindow.start || paddedStartDate;
-    const newStart = new Date(current);
-    const newEnd = new Date(viewWindow.end || paddedEndDate);
+    const currentStart = viewWindow.start || paddedStartDate;
+    const windowSize = calculateWindowSize();
+
+    const newStart = new Date(currentStart);
 
     if (scale === 'day') {
-      newStart.setDate(newStart.getDate() + (direction * 7)); // Move by week
-      newEnd.setDate(newEnd.getDate() + (direction * 7));
+      newStart.setDate(newStart.getDate() + (direction * 14)); // Move by 2 weeks
     } else if (scale === 'week') {
       newStart.setDate(newStart.getDate() + (direction * 28)); // Move by 4 weeks
-      newEnd.setDate(newEnd.getDate() + (direction * 28));
     } else {
-      newStart.setMonth(newStart.getMonth() + (direction * 3)); // Move by 3 months
-      newEnd.setMonth(newEnd.getMonth() + (direction * 3));
+      newStart.setMonth(newStart.getMonth() + (direction * 2)); // Move by 2 months
     }
+
+    const newEnd = new Date(newStart);
+    newEnd.setDate(newEnd.getDate() + windowSize);
 
     setViewWindow({ start: newStart, end: newEnd });
   };
 
   const goToToday = () => {
     const today = new Date();
-    const newStart = new Date(today);
-    const newEnd = new Date(today);
+    today.setHours(0, 0, 0, 0);
 
-    if (scale === 'day') {
-      newStart.setDate(newStart.getDate() - 7);
-      newEnd.setDate(newEnd.getDate() + 7);
-    } else if (scale === 'week') {
-      newStart.setDate(newStart.getDate() - 28);
-      newEnd.setDate(newEnd.getDate() + 28);
-    } else {
-      newStart.setMonth(newStart.getMonth() - 2);
-      newEnd.setMonth(newEnd.getMonth() + 2);
-    }
+    const windowSize = calculateWindowSize();
+    const halfWindow = Math.floor(windowSize / 2);
+
+    const newStart = new Date(today);
+    newStart.setDate(newStart.getDate() - halfWindow);
+
+    const newEnd = new Date(today);
+    newEnd.setDate(newEnd.getDate() + halfWindow);
 
     setViewWindow({ start: newStart, end: newEnd });
+  };
+
+  // Check if today is in current view
+  const isTodayInView = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today >= startDate && today <= endDate;
   };
 
   const resetView = () => {
@@ -293,7 +314,11 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             </button>
             <button
               onClick={goToToday}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                isTodayInView()
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+              }`}
             >
               Today
             </button>
