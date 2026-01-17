@@ -3,7 +3,13 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2 } from 'lucide-re
 
 const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const [scale, setScale] = useState('week'); // 'day', 'week', 'month'
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const [viewWindow, setViewWindow] = useState({ start: null, end: null }); // Current visible date range
+  const [statusFilter, setStatusFilter] = useState({
+    critical: true,
+    in_progress: true,
+    completed: true,
+    not_started: true
+  });
   const containerRef = useRef(null);
 
   if (!ganttData || !tasks || tasks.length === 0) {
@@ -18,9 +24,20 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     );
   }
 
-  // Parse dates
-  const startDate = ganttData.start_date ? new Date(ganttData.start_date) : new Date();
-  const endDate = ganttData.end_date ? new Date(ganttData.end_date) : new Date();
+  // Parse dates from gantt data with padding
+  const projectStartDate = ganttData.start_date ? new Date(ganttData.start_date) : new Date();
+  const projectEndDate = ganttData.end_date ? new Date(ganttData.end_date) : new Date();
+
+  // Add padding: 2 weeks before and after for better context
+  const paddedStartDate = new Date(projectStartDate);
+  paddedStartDate.setDate(paddedStartDate.getDate() - 14);
+
+  const paddedEndDate = new Date(projectEndDate);
+  paddedEndDate.setDate(paddedEndDate.getDate() + 14);
+
+  // Use view window if set, otherwise use full padded range
+  const startDate = viewWindow.start || paddedStartDate;
+  const endDate = viewWindow.end || paddedEndDate;
 
   // Calculate total days
   const totalDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) || 1;
@@ -156,6 +173,65 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
   const hierarchicalTasks = organizeTasksByHierarchy();
 
+  // Filter tasks based on status filter
+  const filteredTasks = hierarchicalTasks.filter(task => {
+    const critical = isCritical(task.id);
+
+    if (critical && !statusFilter.critical) return false;
+    if (task.status === 'completed' && !statusFilter.completed) return false;
+    if (task.status === 'in_progress' && !statusFilter.in_progress) return false;
+    if (task.status === 'not_started' && !statusFilter.not_started) return false;
+
+    return true;
+  });
+
+  // Navigation functions
+  const navigatePeriod = (direction) => {
+    const current = viewWindow.start || paddedStartDate;
+    const newStart = new Date(current);
+    const newEnd = new Date(viewWindow.end || paddedEndDate);
+
+    if (scale === 'day') {
+      newStart.setDate(newStart.getDate() + (direction * 7)); // Move by week
+      newEnd.setDate(newEnd.getDate() + (direction * 7));
+    } else if (scale === 'week') {
+      newStart.setDate(newStart.getDate() + (direction * 28)); // Move by 4 weeks
+      newEnd.setDate(newEnd.getDate() + (direction * 28));
+    } else {
+      newStart.setMonth(newStart.getMonth() + (direction * 3)); // Move by 3 months
+      newEnd.setMonth(newEnd.getMonth() + (direction * 3));
+    }
+
+    setViewWindow({ start: newStart, end: newEnd });
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    const newStart = new Date(today);
+    const newEnd = new Date(today);
+
+    if (scale === 'day') {
+      newStart.setDate(newStart.getDate() - 7);
+      newEnd.setDate(newEnd.getDate() + 7);
+    } else if (scale === 'week') {
+      newStart.setDate(newStart.getDate() - 28);
+      newEnd.setDate(newEnd.getDate() + 28);
+    } else {
+      newStart.setMonth(newStart.getMonth() - 2);
+      newEnd.setMonth(newEnd.getMonth() + 2);
+    }
+
+    setViewWindow({ start: newStart, end: newEnd });
+  };
+
+  const resetView = () => {
+    setViewWindow({ start: null, end: null });
+  };
+
+  const toggleStatusFilter = (status) => {
+    setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }));
+  };
+
   // Calculate today's position for indicator line
   const getTodayPosition = () => {
     const today = new Date();
@@ -174,53 +250,118 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Controls */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 mr-2">View:</span>
-          <button
-            onClick={() => setScale('day')}
-            className={`px-3 py-1 rounded text-sm ${
-              scale === 'day' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Day
-          </button>
-          <button
-            onClick={() => setScale('week')}
-            className={`px-3 py-1 rounded text-sm ${
-              scale === 'week' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Week
-          </button>
-          <button
-            onClick={() => setScale('month')}
-            className={`px-3 py-1 rounded text-sm ${
-              scale === 'month' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Month
-          </button>
+      <div className="flex flex-col gap-3 px-6 py-3 border-b border-gray-200 bg-gray-50">
+        {/* Top row: Scale and Navigation */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600 font-medium">View:</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setScale('day')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  scale === 'day' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Day
+              </button>
+              <button
+                onClick={() => setScale('week')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  scale === 'week' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setScale('month')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  scale === 'month' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }`}
+              >
+                Month
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigatePeriod(-1)}
+              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+              title="Previous period"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
+              onClick={goToToday}
+              className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => navigatePeriod(1)}
+              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+              title="Next period"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
+              onClick={resetView}
+              className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Show full timeline"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded border border-red-700 shadow-sm"></div>
-              <span className="text-gray-700 font-medium">Critical Path</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded border border-blue-700 shadow-sm"></div>
-              <span className="text-gray-700 font-medium">In Progress</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded border border-green-700 shadow-sm"></div>
-              <span className="text-gray-700 font-medium">Completed</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-gradient-to-r from-gray-400 to-gray-500 rounded border border-gray-600 shadow-sm"></div>
-              <span className="text-gray-700 font-medium">Not Started</span>
-            </div>
+        {/* Bottom row: Legend/Filters */}
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600 font-medium">Filter:</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => toggleStatusFilter('critical')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                statusFilter.critical
+                  ? 'bg-red-50 border-2 border-red-300'
+                  : 'bg-white border-2 border-gray-200 opacity-50 hover:opacity-75'
+              }`}
+            >
+              <div className="w-3 h-3 bg-gradient-to-r from-red-500 to-red-600 rounded border border-red-700 shadow-sm"></div>
+              <span className="text-gray-700">Critical Path</span>
+            </button>
+            <button
+              onClick={() => toggleStatusFilter('in_progress')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                statusFilter.in_progress
+                  ? 'bg-blue-50 border-2 border-blue-300'
+                  : 'bg-white border-2 border-gray-200 opacity-50 hover:opacity-75'
+              }`}
+            >
+              <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded border border-blue-700 shadow-sm"></div>
+              <span className="text-gray-700">In Progress</span>
+            </button>
+            <button
+              onClick={() => toggleStatusFilter('completed')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                statusFilter.completed
+                  ? 'bg-green-50 border-2 border-green-300'
+                  : 'bg-white border-2 border-gray-200 opacity-50 hover:opacity-75'
+              }`}
+            >
+              <div className="w-3 h-3 bg-gradient-to-r from-green-500 to-green-600 rounded border border-green-700 shadow-sm"></div>
+              <span className="text-gray-700">Completed</span>
+            </button>
+            <button
+              onClick={() => toggleStatusFilter('not_started')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                statusFilter.not_started
+                  ? 'bg-gray-50 border-2 border-gray-300'
+                  : 'bg-white border-2 border-gray-200 opacity-50 hover:opacity-75'
+              }`}
+            >
+              <div className="w-3 h-3 bg-gradient-to-r from-gray-400 to-gray-500 rounded border border-gray-600 shadow-sm"></div>
+              <span className="text-gray-700">Not Started</span>
+            </button>
           </div>
         </div>
       </div>
@@ -236,7 +377,7 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
             </div>
 
             {/* Task Rows */}
-            {hierarchicalTasks.map((task) => {
+            {filteredTasks.map((task) => {
               const critical = isCritical(task.id);
               return (
                 <div
@@ -293,7 +434,7 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
                 </div>
               )}
 
-              {hierarchicalTasks.map((task, idx) => {
+              {filteredTasks.map((task, idx) => {
                 const style = getTaskStyle(task);
                 const critical = isCritical(task.id);
                 const bgColor = getStatusColor(task.status, critical);
@@ -354,10 +495,15 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
       <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div>
-            Showing {hierarchicalTasks.length} tasks from {startDate.toLocaleDateString()} to {endDate.toLocaleDateString()}
+            Showing <span className="font-semibold text-gray-900">{filteredTasks.length}</span> of <span className="font-semibold text-gray-900">{hierarchicalTasks.length}</span> tasks
           </div>
-          <div>
-            Duration: {totalDays} days
+          <div className="flex items-center gap-4">
+            <div>
+              <span className="text-gray-500">Timeline:</span> {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </div>
+            <div>
+              <span className="text-gray-500">Duration:</span> <span className="font-semibold text-gray-900">{totalDays}</span> days
+            </div>
           </div>
         </div>
       </div>
