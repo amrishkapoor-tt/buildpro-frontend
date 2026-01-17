@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, X, Send, CheckCircle, XCircle, AlertTriangle, Clock, Search } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Submittals = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [packages, setPackages] = useState([]);
   const [submittals, setSubmittals] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -165,21 +167,25 @@ const Submittals = ({ projectId, token }) => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Submittals</h2>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowNewPackage(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-          >
-            <Plus className="w-5 h-5" />
-            New Package
-          </button>
-          <button
-            onClick={() => setShowNewSubmittal(true)}
-            disabled={packages.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-          >
-            <Plus className="w-5 h-5" />
-            New Submittal
-          </button>
+          {can('create_submittal') && (
+            <>
+              <button
+                onClick={() => setShowNewPackage(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                <Plus className="w-5 h-5" />
+                New Package
+              </button>
+              <button
+                onClick={() => setShowNewSubmittal(true)}
+                disabled={packages.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                <Plus className="w-5 h-5" />
+                New Submittal
+              </button>
+            </>
+          )}
         </div>
       </div>
 

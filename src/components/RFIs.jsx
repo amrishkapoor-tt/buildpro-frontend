@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, X, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const RFIs = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [rfis, setRfis] = useState([]);
   const [selectedRFI, setSelectedRFI] = useState(null);
   const [showNewRFI, setShowNewRFI] = useState(false);
@@ -99,13 +101,15 @@ const RFIs = ({ projectId, token }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">RFIs</h2>
-        <button
-          onClick={() => setShowNewRFI(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-5 h-5" />
-          New RFI
-        </button>
+        {can('create_rfi') && (
+          <button
+            onClick={() => setShowNewRFI(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5" />
+            New RFI
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -242,7 +246,7 @@ const RFIs = ({ projectId, token }) => {
               </div>
 
               <div className="flex gap-2">
-                {selectedRFI.status === 'draft' && (
+                {selectedRFI.status === 'draft' && can('change_rfi_status') && (
                   <button
                     onClick={() => handleStatusChange(selectedRFI.id, 'open')}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -250,7 +254,7 @@ const RFIs = ({ projectId, token }) => {
                     Open RFI
                   </button>
                 )}
-                {selectedRFI.status === 'answered' && (
+                {selectedRFI.status === 'answered' && can('change_rfi_status') && (
                   <button
                     onClick={() => handleStatusChange(selectedRFI.id, 'closed')}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

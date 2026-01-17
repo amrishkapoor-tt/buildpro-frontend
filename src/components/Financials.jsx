@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, X, TrendingUp, TrendingDown, FileText, CheckCircle, ChevronRight } from 'lucide-react';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Financials = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [activeView, setActiveView] = useState('overview');
   const [budgetLines, setBudgetLines] = useState([]);
   const [commitments, setCommitments] = useState([]);
@@ -223,13 +225,15 @@ const Financials = ({ projectId, token }) => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-gray-900">Budget Lines</h3>
-                <button
-                  onClick={() => setShowNewBudgetLine(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Budget Line
-                </button>
+                {can('edit_budget') && (
+                  <button
+                    onClick={() => setShowNewBudgetLine(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add Budget Line
+                  </button>
+                )}
               </div>
               <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
                 <table className="w-full">
@@ -307,13 +311,15 @@ const Financials = ({ projectId, token }) => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-gray-900">Change Management</h3>
-                <button
-                  onClick={() => setShowNewChangeEvent(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="w-5 h-5" />
-                  New Change Event
-                </button>
+                {can('create_change_event') && (
+                  <button
+                    onClick={() => setShowNewChangeEvent(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <Plus className="w-5 h-5" />
+                    New Change Event
+                  </button>
+                )}
               </div>
 
               {/* Change Events */}
@@ -341,7 +347,7 @@ const Financials = ({ projectId, token }) => {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          {event.status === 'pending_review' && (
+                          {event.status === 'pending_review' && can('approve_change_order') && (
                             <button
                               onClick={() => approveChangeEvent(event.id)}
                               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
@@ -349,7 +355,7 @@ const Financials = ({ projectId, token }) => {
                               Approve
                             </button>
                           )}
-                          {event.status === 'approved' && (
+                          {event.status === 'approved' && can('approve_change_order') && (
                             <button
                               onClick={() => convertToChangeOrder(event.id)}
                               className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -398,7 +404,7 @@ const Financials = ({ projectId, token }) => {
                               </div>
                             </div>
                           </div>
-                          {co.status === 'pending' && (
+                          {co.status === 'pending' && can('approve_change_order') && (
                             <button
                               onClick={() => approveChangeOrder(co.id)}
                               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

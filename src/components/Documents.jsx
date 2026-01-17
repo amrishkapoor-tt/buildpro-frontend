@@ -9,6 +9,7 @@ import EnhancedUploadModal from './EnhancedUploadModal';
 import VersionHistory from './VersionHistory';
 import DocumentPreview from './DocumentPreview';
 import DocumentLinkModal from './DocumentLinkModal';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -18,6 +19,7 @@ const CATEGORIES = [
 ];
 
 const Documents = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [documents, setDocuments] = useState([]);
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -365,13 +367,15 @@ const Documents = ({ projectId, token }) => {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Upload className="w-5 h-5" />
-              Upload
-            </button>
+            {can('upload_document') && (
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Upload className="w-5 h-5" />
+                Upload
+              </button>
+            )}
           </div>
         </div>
 
@@ -533,12 +537,14 @@ const Documents = ({ projectId, token }) => {
                 <option value="">Set category...</option>
                 {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
-              <button
-                onClick={handleBulkDelete}
-                className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-              >
-                Delete
-              </button>
+              {can('delete_document') && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              )}
               <button
                 onClick={() => setSelectedDocs(new Set())}
                 className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
@@ -659,13 +665,15 @@ const Documents = ({ projectId, token }) => {
                                 >
                                   <Clock className="w-5 h-5" />
                                 </button>
-                                <button
-                                  onClick={() => setEditingDoc(doc.id)}
-                                  className="p-2 text-gray-600 hover:bg-gray-50 rounded"
-                                  title="Edit"
-                                >
-                                  <Edit2 className="w-5 h-5" />
-                                </button>
+                                {can('edit_document') && (
+                                  <button
+                                    onClick={() => setEditingDoc(doc.id)}
+                                    className="p-2 text-gray-600 hover:bg-gray-50 rounded"
+                                    title="Edit"
+                                  >
+                                    <Edit2 className="w-5 h-5" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setLinkDoc(doc)}
                                   className="p-2 text-indigo-600 hover:bg-indigo-50 rounded"
@@ -673,13 +681,15 @@ const Documents = ({ projectId, token }) => {
                                 >
                                   <LinkIcon className="w-5 h-5" />
                                 </button>
-                                <button
-                                  onClick={() => handleDeleteDocument(doc.id, doc.name)}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
+                                {can('delete_document') && (
+                                  <button
+                                    onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 mt-2">

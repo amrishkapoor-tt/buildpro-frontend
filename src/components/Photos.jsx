@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Image, Plus, X, Tag, MapPin, Calendar, Search, Link2, Trash2, Download } from 'lucide-react';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Photos = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [albums, setAlbums] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
@@ -246,21 +248,25 @@ const Photos = ({ projectId, token }) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowNewAlbum(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-          >
-            <Plus className="w-5 h-5" />
-            New Album
-          </button>
-          <button
-            onClick={() => setShowUploadPhoto(true)}
-            disabled={albums.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
-          >
-            <Camera className="w-5 h-5" />
-            Upload Photo
-          </button>
+          {can('create_album') && (
+            <button
+              onClick={() => setShowNewAlbum(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              <Plus className="w-5 h-5" />
+              New Album
+            </button>
+          )}
+          {can('upload_photo') && (
+            <button
+              onClick={() => setShowUploadPhoto(true)}
+              disabled={albums.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+            >
+              <Camera className="w-5 h-5" />
+              Upload Photo
+            </button>
+          )}
         </div>
       </div>
 
@@ -564,13 +570,15 @@ const Photos = ({ projectId, token }) => {
                 >
                   <Link2 className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => handleDeletePhoto(selectedPhoto.id, selectedPhoto.title)}
-                  className="p-2 text-red-600 hover:bg-red-50 rounded"
-                  title="Delete photo"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                {can('delete_photo') && (
+                  <button
+                    onClick={() => handleDeletePhoto(selectedPhoto.id, selectedPhoto.title)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    title="Delete photo"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
                 <button onClick={() => setShowPhotoDetail(false)}>
                   <X className="w-6 h-6 text-gray-400" />
                 </button>

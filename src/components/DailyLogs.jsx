@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, X, Send, Lock, Sun, Cloud } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const DailyLogs = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [dailyLogs, setDailyLogs] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -99,13 +101,15 @@ const DailyLogs = ({ projectId, token }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Daily Logs</h2>
-        <button
-          onClick={() => setShowNewLog(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-5 h-5" />
-          New Daily Log
-        </button>
+        {can('create_log') && (
+          <button
+            onClick={() => setShowNewLog(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5" />
+            New Daily Log
+          </button>
+        )}
       </div>
 
       {loading ? (

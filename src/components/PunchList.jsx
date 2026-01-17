@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Wrench, Plus, X, CheckCircle, Clock, AlertCircle, Search } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const PunchList = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [punchItems, setPunchItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
@@ -112,13 +114,15 @@ const PunchList = ({ projectId, token }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Punch List</h2>
-        <button
-          onClick={() => setShowNewPunch(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-5 h-5" />
-          New Punch Item
-        </button>
+        {can('create_punch') && (
+          <button
+            onClick={() => setShowNewPunch(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5" />
+            New Punch Item
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-4">
@@ -203,7 +207,7 @@ const PunchList = ({ projectId, token }) => {
                           Complete
                         </button>
                       )}
-                      {item.status === 'completed' && (
+                      {item.status === 'completed' && can('verify_punch') && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -369,7 +373,7 @@ const PunchList = ({ projectId, token }) => {
                     Mark Complete
                   </button>
                 )}
-                {selectedItem.status === 'completed' && (
+                {selectedItem.status === 'completed' && can('verify_punch') && (
                   <button
                     onClick={() => handleStatusChange(selectedItem.id, 'verified')}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -377,7 +381,7 @@ const PunchList = ({ projectId, token }) => {
                     Verify
                   </button>
                 )}
-                {selectedItem.status === 'verified' && (
+                {selectedItem.status === 'verified' && can('close_punch') && (
                   <button
                     onClick={() => handleStatusChange(selectedItem.id, 'closed')}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"

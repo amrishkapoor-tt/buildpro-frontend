@@ -10,10 +10,12 @@ import MilestoneList from './MilestoneList';
 import ScheduleAnalytics from './ScheduleAnalytics';
 import TaskModal from './TaskModal';
 import DependencyModal from './DependencyModal';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Schedule = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [activeTab, setActiveTab] = useState('gantt'); // 'gantt', 'tasks', 'milestones', 'analytics'
   const [tasks, setTasks] = useState([]);
   const [milestones, setMilestones] = useState([]);
@@ -216,13 +218,15 @@ const Schedule = ({ projectId, token }) => {
               Manage tasks, dependencies, and track project timeline
             </p>
           </div>
-          <button
-            onClick={handleCreateTask}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Task
-          </button>
+          {can('create_task') && (
+            <button
+              onClick={handleCreateTask}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Task
+            </button>
+          )}
         </div>
 
         {/* Summary Stats */}

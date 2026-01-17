@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layers, FileText, Plus, X, Square, Circle, ArrowRight, Type, ZoomIn, ZoomOut, Save, Trash2, Eye, Upload } from 'lucide-react';
+import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
 const Drawings = ({ projectId, token }) => {
+  const { can } = usePermissions();
   const [drawingSets, setDrawingSets] = useState([]);
   const [selectedSet, setSelectedSet] = useState(null);
   const [selectedSheet, setSelectedSheet] = useState(null);
@@ -140,13 +142,15 @@ const Drawings = ({ projectId, token }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-semibold text-gray-900">Drawings</h2>
-        <button
-          onClick={() => setShowNewSet(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="w-5 h-5" />
-          New Drawing Set
-        </button>
+        {can('upload_drawing') && (
+          <button
+            onClick={() => setShowNewSet(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5" />
+            New Drawing Set
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -191,13 +195,15 @@ const Drawings = ({ projectId, token }) => {
                   {selectedSet.set_number} • Rev. {selectedSet.revision}
                 </p>
               </div>
-              <button
-                onClick={() => setShowNewSheet(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <Plus className="w-5 h-5" />
-                Add Sheet
-              </button>
+              {can('upload_drawing') && (
+                <button
+                  onClick={() => setShowNewSheet(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Sheet
+                </button>
+              )}
             </div>
           </div>
           <div className="divide-y divide-gray-200">
@@ -234,16 +240,18 @@ const Drawings = ({ projectId, token }) => {
             View & Markup
           </button>
         )}
-        <button
-          onClick={() => {
-            if (window.confirm('Delete this sheet?')) {
-              handleDeleteSheet(sheet.id);
-            }
-          }}
-          className="p-2 text-red-600 hover:bg-red-50 rounded"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {can('delete_drawing') && (
+          <button
+            onClick={() => {
+              if (window.confirm('Delete this sheet?')) {
+                handleDeleteSheet(sheet.id);
+              }
+            }}
+            className="p-2 text-red-600 hover:bg-red-50 rounded"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   </div>
