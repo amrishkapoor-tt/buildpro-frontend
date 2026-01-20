@@ -226,8 +226,24 @@ const Documents = ({ projectId, token }) => {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Failed to delete');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to delete (${response.status})`);
+      }
+
+      // Clear document from selected set if it was selected
+      const newSelected = new Set(selectedDocs);
+      newSelected.delete(docId);
+      setSelectedDocs(newSelected);
+
+      // Clear document from links state
+      const newLinks = { ...documentLinks };
+      delete newLinks[docId];
+      setDocumentLinks(newLinks);
+
+      // Reload documents and folders
       loadDocuments();
+      loadFolders();
     } catch (error) {
       alert('Failed to delete: ' + error.message);
     }
