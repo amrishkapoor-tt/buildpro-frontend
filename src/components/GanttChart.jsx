@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
   const [scale, setScale] = useState('week'); // 'day', 'week', 'month'
@@ -250,6 +250,25 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
     setStatusFilter(prev => ({ ...prev, [status]: !prev[status] }));
   };
 
+  // Navigate forward or backward
+  const navigatePeriod = (direction) => {
+    const current = centerDate || new Date();
+    const newCenter = new Date(current);
+
+    if (scale === 'day') {
+      // Move by 1 week for day view
+      newCenter.setDate(newCenter.getDate() + (direction * 7));
+    } else if (scale === 'week') {
+      // Move by 4 weeks for week view
+      newCenter.setDate(newCenter.getDate() + (direction * 28));
+    } else {
+      // Move by 1 month for month view
+      newCenter.setMonth(newCenter.getMonth() + direction);
+    }
+
+    setCenterDate(newCenter);
+  };
+
   // Go to today
   const goToToday = () => {
     setCenterDate(new Date());
@@ -321,6 +340,13 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => navigatePeriod(-1)}
+              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+              title="Previous period"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+            <button
               onClick={goToToday}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                 isTodayInView()
@@ -329,6 +355,13 @@ const GanttChart = ({ ganttData, tasks, criticalPath, onTaskClick }) => {
               }`}
             >
               Today
+            </button>
+            <button
+              onClick={() => navigatePeriod(1)}
+              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-gray-100 transition-colors"
+              title="Next period"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>
           </div>
         </div>
