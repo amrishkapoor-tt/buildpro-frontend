@@ -38,14 +38,26 @@ const ASIManager = ({ projectId, onClose }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to load ASIs');
-
-      const data = await response.json();
-      setAsis(data.asis || []);
+      if (!response.ok) {
+        // Only show error for non-404 errors
+        if (response.status !== 404) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to load ASIs');
+        }
+        // For 404 or no results, just set empty array
+        setAsis([]);
+      } else {
+        const data = await response.json();
+        setAsis(data.asis || []);
+      }
       setLoading(false);
     } catch (error) {
-      console.error('Failed to load ASIs:', error);
-      alert('Failed to load ASIs');
+      console.error('Error loading ASIs:', error);
+      // Only show alert for actual server errors, not empty results
+      if (error.message && error.message !== 'Failed to fetch') {
+        alert('Unable to load ASIs. Please try again.');
+      }
+      setAsis([]);
       setLoading(false);
     }
   };
@@ -56,13 +68,16 @@ const ASIManager = ({ projectId, onClose }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to load ASI details');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to load ASI details');
+      }
 
       const data = await response.json();
       setSelectedASI(data.asi);
     } catch (error) {
-      console.error('Failed to load ASI details:', error);
-      alert('Failed to load ASI details');
+      console.error('Error loading ASI details:', error);
+      alert('Unable to load ASI details: ' + error.message);
     }
   };
 
