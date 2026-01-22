@@ -55,8 +55,9 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
         pdfDocRef.current = pdf;
         setNumPages(pdf.numPages);
-        await renderPage(1, pdf);
         setPdfLoading(false);
+        // Delay renderPage slightly to ensure canvas is rendered after pdfLoading becomes false
+        setTimeout(() => renderPage(1, pdf), 100);
       } catch (err) {
         console.error('PDF load error:', err);
         if (!cancelled) {
