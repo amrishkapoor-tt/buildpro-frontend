@@ -9,6 +9,7 @@ import EnhancedUploadModal from './EnhancedUploadModal';
 import VersionHistory from './VersionHistory';
 import DocumentPreview from './DocumentPreview';
 import DocumentLinkModal from './DocumentLinkModal';
+import DrawingViewer from './DrawingViewer';
 import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -44,6 +45,7 @@ const Documents = ({ projectId, token }) => {
   const [linkDoc, setLinkDoc] = useState(null);
   const [showFolderTree, setShowFolderTree] = useState(true);
   const [documentLinks, setDocumentLinks] = useState({}); // Map of documentId -> links array
+  const [viewingDrawing, setViewingDrawing] = useState(null);
 
   useEffect(() => {
     if (projectId) {
@@ -697,6 +699,15 @@ const Documents = ({ projectId, token }) => {
                                 >
                                   <LinkIcon className="w-5 h-5" />
                                 </button>
+                                {doc.category === 'Drawings' && (
+                                  <button
+                                    onClick={() => setViewingDrawing(doc)}
+                                    className="p-2 text-green-600 hover:bg-green-50 rounded font-bold"
+                                    title="Drawing Workflow & Markup"
+                                  >
+                                    📐
+                                  </button>
+                                )}
                                 {can('delete_document') && (
                                   <button
                                     onClick={() => handleDeleteDocument(doc.id, doc.name)}
@@ -778,6 +789,14 @@ const Documents = ({ projectId, token }) => {
           projectId={projectId}
           onClose={() => setLinkDoc(null)}
           onLinked={loadDocuments}
+        />
+      )}
+
+      {viewingDrawing && (
+        <DrawingViewer
+          document={viewingDrawing}
+          onClose={() => setViewingDrawing(null)}
+          onUpdate={loadDocuments}
         />
       )}
     </div>
