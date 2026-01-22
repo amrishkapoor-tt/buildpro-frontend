@@ -39,12 +39,8 @@ const ASIManager = ({ projectId, onClose }) => {
       });
 
       if (!response.ok) {
-        // Only show error for non-404 errors
-        if (response.status !== 404) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'Failed to load ASIs');
-        }
-        // For 404 or no results, just set empty array
+        // Silently handle all HTTP errors - just show empty state
+        console.log('ASI endpoint returned:', response.status);
         setAsis([]);
       } else {
         const data = await response.json();
@@ -52,11 +48,8 @@ const ASIManager = ({ projectId, onClose }) => {
       }
       setLoading(false);
     } catch (error) {
+      // Silently handle network errors - just show empty state
       console.error('Error loading ASIs:', error);
-      // Only show alert for actual server errors, not empty results
-      if (error.message && error.message !== 'Failed to fetch') {
-        alert('Unable to load ASIs. Please try again.');
-      }
       setAsis([]);
       setLoading(false);
     }
