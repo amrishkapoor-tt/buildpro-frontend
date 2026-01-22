@@ -26,8 +26,17 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
+    console.log('DrawingMarkup mounted with:', {
+      documentId,
+      documentUrl,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'null'
+    });
+
     if (documentId && token) {
       loadDrawingData();
+    } else {
+      console.error('Missing required props:', { documentId, hasToken: !!token });
     }
   }, [documentId, token]);
 
@@ -112,7 +121,24 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   const handleImageError = (e) => {
     console.error('Failed to load drawing image:', e);
     console.error('Image URL:', documentUrl);
-    alert('Failed to load drawing image. Please check if the document exists and you have permission to view it.');
+    console.error('Document ID:', documentId);
+    console.error('Token available:', !!token);
+    console.error('Token value:', token ? `${token.substring(0, 20)}...` : 'null');
+
+    // Try to fetch the URL to get a better error message
+    fetch(documentUrl)
+      .then(res => {
+        console.error('Fetch response status:', res.status);
+        return res.text();
+      })
+      .then(text => {
+        console.error('Fetch response body:', text);
+      })
+      .catch(err => {
+        console.error('Fetch error:', err);
+      });
+
+    alert('Failed to load drawing image. Check console for details.');
     setLoading(false);
   };
 
