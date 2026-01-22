@@ -262,7 +262,7 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
     return (
       <DrawingMarkup
         documentId={document.id}
-        documentUrl={`${API_URL}/documents/${document.id}/download?token=${token}`}
+        documentUrl={`${API_URL}/documents/${document.id}/preview?token=${token}`}
         onClose={() => {
           setShowMarkupCanvas(false);
           loadDrawingData();

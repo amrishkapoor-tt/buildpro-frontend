@@ -111,6 +111,13 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
     }
   };
 
+  const handleImageError = (e) => {
+    console.error('Failed to load drawing image:', e);
+    console.error('Image URL:', documentUrl);
+    alert('Failed to load drawing image. Please check if the document exists and you have permission to view it.');
+    setLoading(false);
+  };
+
   const redrawCanvas = () => {
     const canvas = canvasRef.current;
     const image = imageRef.current;
@@ -515,6 +522,7 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
             src={documentUrl}
             alt="Drawing"
             onLoad={handleImageLoad}
+            onError={handleImageError}
             style={{ display: 'block' }}
           />
           <canvas
