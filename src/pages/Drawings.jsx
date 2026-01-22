@@ -54,6 +54,12 @@ const Drawings = ({ projectId, token }) => {
   }, [projectId, filters]);
 
   const loadDrawings = async () => {
+    if (!token || !projectId) {
+      console.error('Missing authentication or project ID');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -65,7 +71,10 @@ const Drawings = ({ projectId, token }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to load drawings');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Failed to load drawings (${response.status})`);
+      }
 
       const data = await response.json();
       let docs = data.documents || [];
@@ -84,7 +93,7 @@ const Drawings = ({ projectId, token }) => {
       setDrawings(docs);
     } catch (error) {
       console.error('Failed to load drawings:', error);
-      alert('Failed to load drawings');
+      alert('Failed to load drawings: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -100,6 +109,11 @@ const Drawings = ({ projectId, token }) => {
 
     if (!uploadData.drawing_number) {
       alert('Drawing number is required');
+      return;
+    }
+
+    if (!token || !projectId) {
+      alert('Authentication error. Please log in again.');
       return;
     }
 
@@ -130,18 +144,33 @@ const Drawings = ({ projectId, token }) => {
 
       const data = await response.json();
 
-      // Create initial workflow state
-      await fetch(`${API_URL}/drawings/${data.document.id}/workflow`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          workflow_state: 'received',
-          notes: 'Drawing uploaded and received'
-        })
-      });
+      // Validate response structure
+      if (!data || !data.document || !data.document.id) {
+        throw new Error('Invalid server response: missing document ID');
+      }
+
+      // Create initial workflow state with error handling
+      try {
+        const workflowResponse = await fetch(`${API_URL}/drawings/${data.document.id}/workflow`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            workflow_state: 'received',
+            notes: 'Drawing uploaded and received'
+          })
+        });
+
+        if (!workflowResponse.ok) {
+          console.error('Failed to create workflow state:', await workflowResponse.text().catch(() => 'Unknown error'));
+          // Continue despite workflow failure - drawing is already uploaded
+        }
+      } catch (workflowError) {
+        console.error('Failed to create workflow state:', workflowError);
+        // Continue despite workflow failure - drawing is already uploaded
+      }
 
       setShowUploadModal(false);
       setUploadData({

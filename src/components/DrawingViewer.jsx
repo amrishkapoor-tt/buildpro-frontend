@@ -21,56 +21,100 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
   const [notes, setNotes] = useState('');
   const [users, setUsers] = useState([]);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
-    loadDrawingData();
-    loadUsers();
-  }, [document.id]);
+    if (document && document.id && token) {
+      loadDrawingData();
+      loadUsers();
+    }
+  }, [document?.id, token]);
 
   const loadDrawingData = async () => {
+    if (!document || !document.id || !token) {
+      console.error('Missing document ID or authentication token');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Load workflow state
-      const workflowRes = await fetch(`${API_URL}/drawings/${document.id}/workflow`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const workflowData = await workflowRes.json();
-      setWorkflowState(workflowData.workflow_state);
+      // Load workflow state (allow 404 for new drawings)
+      try {
+        const workflowRes = await fetch(`${API_URL}/drawings/${document.id}/workflow`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (workflowRes.ok) {
+          const workflowData = await workflowRes.json();
+          setWorkflowState(workflowData.workflow_state || null);
+        } else if (workflowRes.status !== 404) {
+          console.error('Failed to load workflow state:', workflowRes.status);
+        }
+      } catch (workflowError) {
+        console.error('Error loading workflow state:', workflowError);
+      }
 
       // Load workflow history
-      const historyRes = await fetch(`${API_URL}/drawings/${document.id}/workflow-history`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const historyData = await historyRes.json();
-      setWorkflowHistory(historyData.history || []);
+      try {
+        const historyRes = await fetch(`${API_URL}/drawings/${document.id}/workflow-history`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          setWorkflowHistory(historyData.history || []);
+        }
+      } catch (historyError) {
+        console.error('Error loading workflow history:', historyError);
+        setWorkflowHistory([]);
+      }
 
       // Load distributions
-      const distRes = await fetch(`${API_URL}/drawings/${document.id}/distributions`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const distData = await distRes.json();
-      setDistributions(distData.distributions || []);
+      try {
+        const distRes = await fetch(`${API_URL}/drawings/${document.id}/distributions`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (distRes.ok) {
+          const distData = await distRes.json();
+          setDistributions(distData.distributions || []);
+        }
+      } catch (distError) {
+        console.error('Error loading distributions:', distError);
+        setDistributions([]);
+      }
 
       // Load reviews
-      const reviewsRes = await fetch(`${API_URL}/drawings/${document.id}/reviews`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const reviewsData = await reviewsRes.json();
-      setReviews(reviewsData.reviews || []);
+      try {
+        const reviewsRes = await fetch(`${API_URL}/drawings/${document.id}/reviews`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          setReviews(reviewsData.reviews || []);
+        }
+      } catch (reviewsError) {
+        console.error('Error loading reviews:', reviewsError);
+        setReviews([]);
+      }
 
       // Load markups
-      const markupsRes = await fetch(`${API_URL}/drawings/${document.id}/markups`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const markupsData = await markupsRes.json();
-      setMarkups(markupsData.markups || []);
+      try {
+        const markupsRes = await fetch(`${API_URL}/drawings/${document.id}/markups`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (markupsRes.ok) {
+          const markupsData = await markupsRes.json();
+          setMarkups(markupsData.markups || []);
+        }
+      } catch (markupsError) {
+        console.error('Error loading markups:', markupsError);
+        setMarkups([]);
+      }
 
       setLoading(false);
     } catch (error) {
       console.error('Failed to load drawing data:', error);
-      alert('Failed to load drawing data');
+      // Don't show alert - individual errors are already logged
       setLoading(false);
     }
   };
@@ -95,6 +139,11 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
       return;
     }
 
+    if (!token || !document || !document.id) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/drawings/${document.id}/workflow`, {
         method: 'POST',
@@ -110,16 +159,22 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to update workflow');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Update failed with status ${response.status}`);
+      }
 
       const data = await response.json();
-      setWorkflowState(data.workflow_state);
+      if (data && data.workflow_state) {
+        setWorkflowState(data.workflow_state);
+      }
       setNewWorkflowState('');
       setAssignedTo('');
       setDueDate('');
       setNotes('');
       loadDrawingData();
       if (onUpdate) onUpdate();
+      alert('Workflow updated successfully');
     } catch (error) {
       console.error('Failed to update workflow:', error);
       alert('Failed to update workflow: ' + error.message);
@@ -127,6 +182,11 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
   };
 
   const handleDistribute = async () => {
+    if (!token || !document || !document.id) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     const userId = prompt('Enter user ID to distribute to (or leave empty for role-based):');
     const role = !userId ? prompt('Enter role to distribute to:') : null;
 
@@ -148,7 +208,10 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to distribute');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Distribution failed with status ${response.status}`);
+      }
 
       loadDrawingData();
       alert('Drawing distributed successfully');
@@ -159,6 +222,11 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
   };
 
   const handleRequestReview = async () => {
+    if (!token || !document || !document.id) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     const reviewerId = prompt('Enter reviewer user ID:');
     if (!reviewerId) return;
 
@@ -177,7 +245,10 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to request review');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Review request failed with status ${response.status}`);
+      }
 
       loadDrawingData();
       alert('Review requested successfully');

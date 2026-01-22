@@ -25,11 +25,13 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
-    loadDrawingData();
-  }, [documentId]);
+    if (documentId && token) {
+      loadDrawingData();
+    }
+  }, [documentId, token]);
 
   useEffect(() => {
     if (imageLoaded) {
@@ -38,27 +40,50 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   }, [markups, scale, offset, imageLoaded]);
 
   const loadDrawingData = async () => {
+    if (!documentId || !token) {
+      console.error('Missing document ID or authentication token');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Load workflow state
-      const workflowRes = await fetch(`${API_URL}/drawings/${documentId}/workflow`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const workflowData = await workflowRes.json();
-      setWorkflowState(workflowData.workflow_state);
+      // Load workflow state (allow 404 for new drawings)
+      try {
+        const workflowRes = await fetch(`${API_URL}/drawings/${documentId}/workflow`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (workflowRes.ok) {
+          const workflowData = await workflowRes.json();
+          setWorkflowState(workflowData.workflow_state || null);
+        } else if (workflowRes.status !== 404) {
+          console.error('Failed to load workflow state:', workflowRes.status);
+        }
+      } catch (workflowError) {
+        console.error('Error loading workflow state:', workflowError);
+      }
 
       // Load markups
-      const markupsRes = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const markupsData = await markupsRes.json();
-      setMarkups(markupsData.markups || []);
+      try {
+        const markupsRes = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (markupsRes.ok) {
+          const markupsData = await markupsRes.json();
+          setMarkups(markupsData.markups || []);
+        } else {
+          console.error('Failed to load markups:', markupsRes.status);
+          setMarkups([]);
+        }
+      } catch (markupsError) {
+        console.error('Error loading markups:', markupsError);
+        setMarkups([]);
+      }
 
       setLoading(false);
     } catch (error) {
       console.error('Failed to load drawing data:', error);
-      alert('Failed to load drawing data');
       setLoading(false);
     }
   };
@@ -92,16 +117,27 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
     if (!canvas || !image || !imageLoaded) return;
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Failed to get canvas 2D context');
+      return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw markups
     markups.forEach(markup => {
       if (markup.markup_data) {
-        const data = typeof markup.markup_data === 'string'
-          ? JSON.parse(markup.markup_data)
-          : markup.markup_data;
+        try {
+          const data = typeof markup.markup_data === 'string'
+            ? JSON.parse(markup.markup_data)
+            : markup.markup_data;
 
-        drawMarkup(ctx, data, markup);
+          if (data) {
+            drawMarkup(ctx, data, markup);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse markup data:', parseError, markup);
+        }
       }
     });
   };
@@ -290,6 +326,11 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   const saveMarkup = async () => {
     if (!selectedMarkup) return;
 
+    if (!token || !documentId) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
         method: 'POST',
@@ -307,10 +348,15 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to save markup');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Save failed with status ${response.status}`);
+      }
 
       const data = await response.json();
-      setMarkups([...markups, data.markup]);
+      if (data && data.markup) {
+        setMarkups([...markups, data.markup]);
+      }
       setComment('');
       setShowCommentDialog(false);
       setSelectedMarkup(null);
@@ -328,13 +374,21 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   const handleDeleteMarkup = async (markupId) => {
     if (!window.confirm('Delete this markup?')) return;
 
+    if (!token || !markupId) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/drawing-markups/${markupId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to delete markup');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed with status ${response.status}`);
+      }
 
       setMarkups(markups.filter(m => m.id !== markupId));
     } catch (error) {
@@ -344,16 +398,26 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   };
 
   const handleResolveMarkup = async (markupId) => {
+    if (!token || !markupId) {
+      alert('Authentication error. Please refresh and try again.');
+      return;
+    }
+
     try {
       const response = await fetch(`${API_URL}/drawing-markups/${markupId}/resolve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to resolve markup');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Resolve failed with status ${response.status}`);
+      }
 
       const data = await response.json();
-      setMarkups(markups.map(m => m.id === markupId ? data.markup : m));
+      if (data && data.markup) {
+        setMarkups(markups.map(m => m.id === markupId ? data.markup : m));
+      }
     } catch (error) {
       console.error('Failed to resolve markup:', error);
       alert('Failed to resolve markup: ' + error.message);

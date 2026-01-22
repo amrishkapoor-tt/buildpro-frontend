@@ -24,7 +24,7 @@ const ASIManager = ({ projectId, onClose }) => {
     estimated_schedule_impact_days: ''
   });
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
     loadASIs();
