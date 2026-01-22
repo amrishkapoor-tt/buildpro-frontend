@@ -55,8 +55,8 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
         pdfDocRef.current = pdf;
         setNumPages(pdf.numPages);
+        await renderPage(1, pdf);
         setPdfLoading(false);
-        renderPage(1, pdf);
       } catch (err) {
         console.error('PDF load error:', err);
         if (!cancelled) {
@@ -155,13 +155,6 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
       console.log('Processed markups:', loadedMarkups);
       setMarkups(loadedMarkups);
-
-      // Redraw markups after loading them
-      setTimeout(() => {
-        if (markupCanvasRef.current) {
-          drawMarkups();
-        }
-      }, 100);
     } catch (err) {
       console.error('Failed to load markups:', err);
     }
@@ -176,9 +169,15 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
     const scale = zoom * 1.5;
 
-    // Draw saved markups
+    // Draw saved markups - only for the current page
     markups.forEach(markup => {
       const d = markup.markup_data;
+
+      // Skip markups that are not on the current page
+      if (d.page && d.page !== pageNum) {
+        return;
+      }
+
       ctx.strokeStyle = d.color || '#ef4444';
       ctx.fillStyle = d.color || '#ef4444';
       ctx.lineWidth = 2;
@@ -261,7 +260,7 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
     if (markupMode === 'text') {
       const text = prompt('Enter text:');
       if (text) {
-        saveMarkup({ type: 'text', x: pos.x, y: pos.y, text, color: '#3b82f6' });
+        saveMarkup({ type: 'text', x: pos.x, y: pos.y, text, color: '#3b82f6', page: pageNum });
       }
       setMarkupMode(null);
       return;
@@ -293,7 +292,8 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
       y: startPos.y,
       width: pos.x - startPos.x,
       height: pos.y - startPos.y,
-      color: '#ef4444'
+      color: '#ef4444',
+      page: pageNum  // Store which page this markup is on
     });
 
     setIsDrawing(false);
@@ -469,12 +469,14 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
         {/* Markups Sidebar */}
         <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
-          <h4 className="font-semibold text-gray-900 mb-4">Markups ({markups.length})</h4>
-          {markups.length === 0 ? (
-            <p className="text-sm text-gray-500">No markups yet. Select a tool above and draw on the PDF.</p>
+          <h4 className="font-semibold text-gray-900 mb-4">
+            Markups on Page {pageNum} ({markups.filter(m => m.markup_data.page === pageNum || !m.markup_data.page).length})
+          </h4>
+          {markups.filter(m => m.markup_data.page === pageNum || !m.markup_data.page).length === 0 ? (
+            <p className="text-sm text-gray-500">No markups on this page yet. Select a tool above and draw on the PDF.</p>
           ) : (
             <div className="space-y-3">
-              {markups.map(markup => (
+              {markups.filter(m => m.markup_data.page === pageNum || !m.markup_data.page).map(markup => (
                 <div key={markup.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
