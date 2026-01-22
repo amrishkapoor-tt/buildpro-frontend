@@ -171,7 +171,10 @@ const Drawings = ({ projectId, token }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to delete drawing');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed with status ${response.status}`);
+      }
 
       loadDrawings();
       alert('Drawing deleted successfully');
