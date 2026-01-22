@@ -14,6 +14,7 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   const [comment, setComment] = useState('');
   const [selectedMarkup, setSelectedMarkup] = useState(null);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [isPDF, setIsPDF] = useState(false);
 
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -35,6 +36,17 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
     if (documentId && token) {
       loadDrawingData();
+      // Check if it's a PDF by fetching headers
+      fetch(documentUrl, { method: 'HEAD' })
+        .then(res => {
+          const contentType = res.headers.get('content-type');
+          console.log('Document content-type:', contentType);
+          if (contentType && contentType.includes('pdf')) {
+            setIsPDF(true);
+            setLoading(false);
+          }
+        })
+        .catch(err => console.error('Failed to check content type:', err));
     } else {
       console.error('Missing required props:', { documentId, hasToken: !!token });
     }
@@ -457,6 +469,52 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
   if (loading) {
     return <div className="drawing-markup-loading">Loading drawing...</div>;
+  }
+
+  // For PDF files, show in iframe without markup capability (for now)
+  if (isPDF) {
+    return (
+      <div className="drawing-markup-container" ref={containerRef}>
+        <div className="drawing-markup-header">
+          <h2>Drawing Viewer (PDF)</h2>
+          <button onClick={onClose} className="close-button">✕</button>
+        </div>
+        <div style={{ padding: '20px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', margin: '10px' }}>
+          <p style={{ margin: 0 }}>
+            <strong>Note:</strong> PDF markup is currently view-only. Please download the PDF to add annotations, or contact support to convert this drawing to an image format for full markup capabilities.
+          </p>
+        </div>
+        <div style={{ padding: '10px', height: 'calc(100vh - 150px)' }}>
+          <iframe
+            src={documentUrl}
+            title="Drawing PDF"
+            style={{
+              width: '100%',
+              height: '100%',
+              border: '1px solid #ddd',
+              borderRadius: '4px'
+            }}
+          />
+        </div>
+        <div className="markups-sidebar">
+          <h3>Markups ({markups.length})</h3>
+          <div className="markups-list">
+            {markups.map(markup => (
+              <div key={markup.id} className={`markup-item ${markup.status}`}>
+                <div className="markup-header">
+                  <span className="markup-author">{markup.created_by_name}</span>
+                  <span className="markup-status">{markup.status}</span>
+                </div>
+                {markup.comment && <p className="markup-comment">{markup.comment}</p>}
+                <div className="markup-date">
+                  {new Date(markup.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
