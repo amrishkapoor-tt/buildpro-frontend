@@ -441,7 +441,7 @@ const Drawings = ({ projectId, token }) => {
                     type="text"
                     value={uploadData.drawing_scale}
                     onChange={(e) => setUploadData({ ...uploadData, drawing_scale: e.target.value })}
-                    placeholder="e.g., 1/4\"=1'-0\""
+                    placeholder="e.g., 1/4 inch = 1 foot"
                   />
                 </div>
                 <div className="form-group">
