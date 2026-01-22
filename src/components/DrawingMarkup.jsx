@@ -1,379 +1,277 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Square, Circle, ArrowRight, Type, ZoomIn, ZoomOut, Trash2, X } from 'lucide-react';
 import './DrawingMarkup.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   const [markups, setMarkups] = useState([]);
-  const [workflowState, setWorkflowState] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [tool, setTool] = useState('pan'); // pan, pen, rectangle, circle, text, arrow
-  const [color, setColor] = useState('#ff0000');
-  const [lineWidth, setLineWidth] = useState(3);
+  const [markupMode, setMarkupMode] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [pageNum, setPageNum] = useState(1);
+  const [numPages, setNumPages] = useState(0);
+  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfError, setPdfError] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [comment, setComment] = useState('');
-  const [selectedMarkup, setSelectedMarkup] = useState(null);
-  const [showCommentDialog, setShowCommentDialog] = useState(false);
-  const [isPDF, setIsPDF] = useState(false);
+  const [startPos, setStartPos] = useState(null);
+  const [currentMarkup, setCurrentMarkup] = useState(null);
 
-  const canvasRef = useRef(null);
-  const imageRef = useRef(null);
-  const containerRef = useRef(null);
-  const currentPathRef = useRef([]);
-  const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const pdfCanvasRef = useRef(null);
+  const markupCanvasRef = useRef(null);
+  const pdfDocRef = useRef(null);
 
+  // Load PDF.js from CDN and then load the PDF
   useEffect(() => {
-    console.log('DrawingMarkup mounted with:', {
-      documentId,
-      documentUrl,
-      hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'null'
-    });
+    let cancelled = false;
 
-    if (documentId && token) {
-      loadDrawingData();
-      // Check if it's a PDF by fetching headers
-      fetch(documentUrl, { method: 'HEAD' })
-        .then(res => {
-          const contentType = res.headers.get('content-type');
-          console.log('Document content-type:', contentType);
-          if (contentType && contentType.includes('pdf')) {
-            setIsPDF(true);
-            setLoading(false);
-          }
-        })
-        .catch(err => console.error('Failed to check content type:', err));
-    } else {
-      console.error('Missing required props:', { documentId, hasToken: !!token });
-    }
-  }, [documentId, token]);
+    const loadPdfJs = async () => {
+      if (window.pdfjsLib) return;
 
-  useEffect(() => {
-    if (imageLoaded) {
-      redrawCanvas();
-    }
-  }, [markups, scale, offset, imageLoaded]);
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          resolve();
+        };
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
 
-  const loadDrawingData = async () => {
-    if (!documentId || !token) {
-      console.error('Missing document ID or authentication token');
-      setLoading(false);
-      return;
-    }
+    const init = async () => {
+      try {
+        await loadPdfJs();
+
+        if (cancelled) return;
+
+        console.log('Loading PDF from:', documentUrl);
+
+        const loadingTask = window.pdfjsLib.getDocument(documentUrl);
+        const pdf = await loadingTask.promise;
+
+        if (cancelled) return;
+
+        pdfDocRef.current = pdf;
+        setNumPages(pdf.numPages);
+        setPdfLoading(false);
+        renderPage(1, pdf);
+      } catch (err) {
+        console.error('PDF load error:', err);
+        if (!cancelled) {
+          setPdfError(`Failed to load PDF: ${err.message}`);
+          setPdfLoading(false);
+        }
+      }
+    };
+
+    init();
+    loadMarkups();
+
+    return () => { cancelled = true; };
+  }, [documentUrl]);
+
+  const renderPage = async (num, pdf = pdfDocRef.current) => {
+    if (!pdf) return;
+
+    // Wait for canvas to be available
+    const waitForCanvas = () => {
+      return new Promise((resolve) => {
+        if (pdfCanvasRef.current) {
+          resolve();
+        } else {
+          setTimeout(() => waitForCanvas().then(resolve), 50);
+        }
+      });
+    };
+
+    await waitForCanvas();
 
     try {
-      setLoading(true);
+      const page = await pdf.getPage(num);
+      const canvas = pdfCanvasRef.current;
+      const ctx = canvas.getContext('2d');
 
-      // Load workflow state (allow 404 for new drawings)
-      try {
-        const workflowRes = await fetch(`${API_URL}/drawings/${documentId}/workflow`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (workflowRes.ok) {
-          const workflowData = await workflowRes.json();
-          setWorkflowState(workflowData.workflow_state || null);
-        } else if (workflowRes.status !== 404) {
-          console.error('Failed to load workflow state:', workflowRes.status);
-        }
-      } catch (workflowError) {
-        console.error('Error loading workflow state:', workflowError);
+      const scale = zoom * 1.5;
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      if (markupCanvasRef.current) {
+        markupCanvasRef.current.width = viewport.width;
+        markupCanvasRef.current.height = viewport.height;
       }
 
-      // Load markups
-      try {
-        const markupsRes = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (markupsRes.ok) {
-          const markupsData = await markupsRes.json();
-          setMarkups(markupsData.markups || []);
-        } else {
-          console.error('Failed to load markups:', markupsRes.status);
-          setMarkups([]);
-        }
-      } catch (markupsError) {
-        console.error('Error loading markups:', markupsError);
-        setMarkups([]);
-      }
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to load drawing data:', error);
-      setLoading(false);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      setPageNum(num);
+    } catch (err) {
+      console.error('Page render error:', err);
     }
   };
 
-  const handleImageLoad = () => {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-    const container = containerRef.current;
-
-    if (canvas && image && container) {
-      // Set canvas size to match image
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-
-      // Calculate initial scale to fit container
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight - 100; // Account for toolbar
-      const scaleX = containerWidth / image.naturalWidth;
-      const scaleY = containerHeight / image.naturalHeight;
-      const initialScale = Math.min(scaleX, scaleY, 1);
-
-      setScale(initialScale);
-      setImageLoaded(true);
-      redrawCanvas();
-    }
-  };
-
-  const handleImageError = (e) => {
-    console.error('Failed to load drawing image:', e);
-    console.error('Image URL:', documentUrl);
-    console.error('Document ID:', documentId);
-    console.error('Token available:', !!token);
-    console.error('Token value:', token ? `${token.substring(0, 20)}...` : 'null');
-
-    // Try to fetch the URL to get a better error message
-    fetch(documentUrl)
-      .then(res => {
-        console.error('Fetch response status:', res.status);
-        return res.text();
-      })
-      .then(text => {
-        console.error('Fetch response body:', text);
-      })
-      .catch(err => {
-        console.error('Fetch error:', err);
+  // Re-render when zoom changes
+  useEffect(() => {
+    if (pdfDocRef.current && !pdfLoading && pdfCanvasRef.current) {
+      renderPage(pageNum).then(() => {
+        drawMarkups();
       });
+    }
+  }, [zoom]);
 
-    alert('Failed to load drawing image. Check console for details.');
-    setLoading(false);
+  const loadMarkups = async () => {
+    try {
+      const response = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setMarkups((data.markups || []).map(m => ({
+        ...m,
+        markup_data: typeof m.markup_data === 'string' ? JSON.parse(m.markup_data) : m.markup_data
+      })));
+    } catch (err) {
+      console.error('Failed to load markups:', err);
+    }
   };
 
-  const redrawCanvas = () => {
-    const canvas = canvasRef.current;
-    const image = imageRef.current;
-    if (!canvas || !image || !imageLoaded) return;
+  const drawMarkups = () => {
+    const canvas = markupCanvasRef.current;
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.error('Failed to get canvas 2D context');
-      return;
-    }
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw markups
-    markups.forEach(markup => {
-      if (markup.markup_data) {
-        try {
-          const data = typeof markup.markup_data === 'string'
-            ? JSON.parse(markup.markup_data)
-            : markup.markup_data;
+    const scale = zoom * 1.5;
 
-          if (data) {
-            drawMarkup(ctx, data, markup);
-          }
-        } catch (parseError) {
-          console.error('Failed to parse markup data:', parseError, markup);
-        }
+    // Draw saved markups
+    markups.forEach(markup => {
+      const d = markup.markup_data;
+      ctx.strokeStyle = d.color || '#ef4444';
+      ctx.fillStyle = d.color || '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.font = '14px Arial';
+
+      if (d.type === 'rectangle') {
+        ctx.strokeRect(d.x * scale, d.y * scale, d.width * scale, d.height * scale);
+      } else if (d.type === 'circle') {
+        ctx.beginPath();
+        const centerX = (d.x + d.width / 2) * scale;
+        const centerY = (d.y + d.height / 2) * scale;
+        const radius = (Math.abs(d.width) / 2) * scale;
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (d.type === 'arrow') {
+        const headlen = 10;
+        const endX = (d.x + d.width) * scale;
+        const endY = (d.y + d.height) * scale;
+        const angle = Math.atan2(d.height * scale, d.width * scale);
+
+        ctx.beginPath();
+        ctx.moveTo(d.x * scale, d.y * scale);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        // Arrowhead
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+      } else if (d.type === 'text') {
+        ctx.fillText(d.text, d.x * scale, d.y * scale);
       }
     });
-  };
 
-  const drawMarkup = (ctx, data, markup) => {
-    ctx.strokeStyle = markup.color || '#ff0000';
-    ctx.lineWidth = data.lineWidth || 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    // Draw current markup being created
+    if (currentMarkup && isDrawing) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      const c = currentMarkup;
 
-    if (data.type === 'path' && data.points && data.points.length > 0) {
-      ctx.beginPath();
-      ctx.moveTo(data.points[0].x, data.points[0].y);
-      for (let i = 1; i < data.points.length; i++) {
-        ctx.lineTo(data.points[i].x, data.points[i].y);
+      if (c.type === 'rectangle') {
+        ctx.strokeRect(c.startX * scale, c.startY * scale, (c.endX - c.startX) * scale, (c.endY - c.startY) * scale);
+      } else if (c.type === 'circle') {
+        const radius = Math.sqrt(Math.pow(c.endX - c.startX, 2) + Math.pow(c.endY - c.startY, 2)) / 2;
+        ctx.beginPath();
+        ctx.arc(((c.startX + c.endX) / 2) * scale, ((c.startY + c.endY) / 2) * scale, radius * scale, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (c.type === 'arrow') {
+        ctx.beginPath();
+        ctx.moveTo(c.startX * scale, c.startY * scale);
+        ctx.lineTo(c.endX * scale, c.endY * scale);
+        ctx.stroke();
       }
-      ctx.stroke();
-    } else if (data.type === 'rectangle') {
-      ctx.strokeRect(data.x, data.y, data.width, data.height);
-    } else if (data.type === 'circle') {
-      ctx.beginPath();
-      ctx.arc(data.x, data.y, data.radius, 0, 2 * Math.PI);
-      ctx.stroke();
-    } else if (data.type === 'arrow') {
-      drawArrow(ctx, data.x1, data.y1, data.x2, data.y2);
-    } else if (data.type === 'text') {
-      ctx.font = `${data.fontSize || 16}px Arial`;
-      ctx.fillStyle = markup.color || '#ff0000';
-      ctx.fillText(data.text, data.x, data.y);
-    }
-
-    // Draw position marker if exists
-    if (markup.position_x !== null && markup.position_y !== null) {
-      ctx.fillStyle = markup.color || '#ff0000';
-      ctx.beginPath();
-      ctx.arc(markup.position_x, markup.position_y, 8, 0, 2 * Math.PI);
-      ctx.fill();
     }
   };
 
-  const drawArrow = (ctx, x1, y1, x2, y2) => {
-    const headLength = 15;
-    const angle = Math.atan2(y2 - y1, x2 - x1);
+  useEffect(() => {
+    if (!pdfLoading && markupCanvasRef.current) {
+      drawMarkups();
+    }
+  }, [markups, currentMarkup, isDrawing, pdfLoading, pageNum]);
 
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - headLength * Math.cos(angle - Math.PI / 6), y2 - headLength * Math.sin(angle - Math.PI / 6));
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - headLength * Math.cos(angle + Math.PI / 6), y2 - headLength * Math.sin(angle + Math.PI / 6));
-    ctx.stroke();
-  };
-
-  const getCanvasCoordinates = (e) => {
-    const canvas = canvasRef.current;
+  const getCanvasCoords = (e) => {
+    const canvas = markupCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
+    const scale = zoom * 1.5;
     return {
-      x: (e.clientX - rect.left - offset.x) / scale,
-      y: (e.clientY - rect.top - offset.y) / scale
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale
     };
   };
 
   const handleMouseDown = (e) => {
-    const coords = getCanvasCoordinates(e);
+    if (!markupMode) return;
+    const pos = getCanvasCoords(e);
 
-    if (tool === 'pan') {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+    if (markupMode === 'text') {
+      const text = prompt('Enter text:');
+      if (text) {
+        saveMarkup({ type: 'text', x: pos.x, y: pos.y, text, color: '#3b82f6' });
+      }
+      setMarkupMode(null);
       return;
     }
 
     setIsDrawing(true);
-    currentPathRef.current = [coords];
+    setStartPos(pos);
   };
 
   const handleMouseMove = (e) => {
-    if (tool === 'pan' && isPanning) {
-      setOffset({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y
-      });
-      return;
-    }
-
-    if (!isDrawing || tool === 'pan') return;
-
-    const coords = getCanvasCoordinates(e);
-    currentPathRef.current.push(coords);
-
-    // Draw preview
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    redrawCanvas();
-
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    if (tool === 'pen') {
-      if (currentPathRef.current.length > 1) {
-        ctx.beginPath();
-        ctx.moveTo(currentPathRef.current[0].x, currentPathRef.current[0].y);
-        for (let i = 1; i < currentPathRef.current.length; i++) {
-          ctx.lineTo(currentPathRef.current[i].x, currentPathRef.current[i].y);
-        }
-        ctx.stroke();
-      }
-    } else if (tool === 'rectangle' && currentPathRef.current.length > 0) {
-      const start = currentPathRef.current[0];
-      const width = coords.x - start.x;
-      const height = coords.y - start.y;
-      ctx.strokeRect(start.x, start.y, width, height);
-    } else if (tool === 'circle' && currentPathRef.current.length > 0) {
-      const start = currentPathRef.current[0];
-      const radius = Math.sqrt(Math.pow(coords.x - start.x, 2) + Math.pow(coords.y - start.y, 2));
-      ctx.beginPath();
-      ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-    } else if (tool === 'arrow' && currentPathRef.current.length > 0) {
-      const start = currentPathRef.current[0];
-      drawArrow(ctx, start.x, start.y, coords.x, coords.y);
-    }
+    if (!isDrawing || !startPos) return;
+    const pos = getCanvasCoords(e);
+    setCurrentMarkup({
+      type: markupMode,
+      startX: startPos.x,
+      startY: startPos.y,
+      endX: pos.x,
+      endY: pos.y
+    });
   };
 
-  const handleMouseUp = async (e) => {
-    if (tool === 'pan') {
-      setIsPanning(false);
-      return;
-    }
+  const handleMouseUp = (e) => {
+    if (!isDrawing || !startPos) return;
+    const pos = getCanvasCoords(e);
 
-    if (!isDrawing) return;
+    saveMarkup({
+      type: markupMode,
+      x: startPos.x,
+      y: startPos.y,
+      width: pos.x - startPos.x,
+      height: pos.y - startPos.y,
+      color: '#ef4444'
+    });
+
     setIsDrawing(false);
-
-    if (currentPathRef.current.length === 0) return;
-
-    const coords = getCanvasCoordinates(e);
-    let markupData = { lineWidth, color };
-
-    if (tool === 'pen') {
-      markupData.type = 'path';
-      markupData.points = currentPathRef.current;
-    } else if (tool === 'rectangle') {
-      const start = currentPathRef.current[0];
-      markupData.type = 'rectangle';
-      markupData.x = start.x;
-      markupData.y = start.y;
-      markupData.width = coords.x - start.x;
-      markupData.height = coords.y - start.y;
-    } else if (tool === 'circle') {
-      const start = currentPathRef.current[0];
-      markupData.type = 'circle';
-      markupData.x = start.x;
-      markupData.y = start.y;
-      markupData.radius = Math.sqrt(Math.pow(coords.x - start.x, 2) + Math.pow(coords.y - start.y, 2));
-    } else if (tool === 'arrow') {
-      const start = currentPathRef.current[0];
-      markupData.type = 'arrow';
-      markupData.x1 = start.x;
-      markupData.y1 = start.y;
-      markupData.x2 = coords.x;
-      markupData.y2 = coords.y;
-    } else if (tool === 'text') {
-      const text = prompt('Enter text:');
-      if (!text) {
-        currentPathRef.current = [];
-        return;
-      }
-      markupData.type = 'text';
-      markupData.text = text;
-      markupData.x = currentPathRef.current[0].x;
-      markupData.y = currentPathRef.current[0].y;
-      markupData.fontSize = 16;
-    }
-
-    // Show comment dialog
-    setSelectedMarkup({ markup_data: markupData, position_x: currentPathRef.current[0].x, position_y: currentPathRef.current[0].y });
-    setShowCommentDialog(true);
-    currentPathRef.current = [];
+    setCurrentMarkup(null);
+    setStartPos(null);
+    setMarkupMode(null);
   };
 
-  const saveMarkup = async () => {
-    if (!selectedMarkup) return;
-
-    if (!token || !documentId) {
-      alert('Authentication error. Please refresh and try again.');
-      return;
-    }
-
+  const saveMarkup = async (markupData) => {
     try {
       const response = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
         method: 'POST',
@@ -382,289 +280,188 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          markup_data: selectedMarkup.markup_data,
+          markup_data: markupData,
           markup_type: 'annotation',
-          position_x: selectedMarkup.position_x,
-          position_y: selectedMarkup.position_y,
-          comment: comment,
-          color: color
+          position_x: markupData.x,
+          position_y: markupData.y,
+          color: markupData.color || '#ef4444',
+          comment: markupData.text || ''
         })
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Save failed with status ${response.status}`);
-      }
-
       const data = await response.json();
-      if (data && data.markup) {
-        setMarkups([...markups, data.markup]);
-      }
-      setComment('');
-      setShowCommentDialog(false);
-      setSelectedMarkup(null);
-    } catch (error) {
-      console.error('Failed to save markup:', error);
-      alert('Failed to save markup: ' + error.message);
+      setMarkups([...markups, { ...data.markup, markup_data: markupData }]);
+    } catch (err) {
+      console.error('Failed to save markup:', err);
+      alert('Failed to save markup');
     }
   };
 
-  const handleZoom = (delta) => {
-    const newScale = Math.max(0.1, Math.min(5, scale + delta));
-    setScale(newScale);
-  };
-
-  const handleDeleteMarkup = async (markupId) => {
+  const deleteMarkup = async (markupId) => {
     if (!window.confirm('Delete this markup?')) return;
 
-    if (!token || !markupId) {
-      alert('Authentication error. Please refresh and try again.');
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_URL}/drawing-markups/${markupId}`, {
+      await fetch(`${API_URL}/drawing-markups/${markupId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Delete failed with status ${response.status}`);
-      }
-
       setMarkups(markups.filter(m => m.id !== markupId));
-    } catch (error) {
-      console.error('Failed to delete markup:', error);
-      alert('Failed to delete markup: ' + error.message);
+    } catch (err) {
+      console.error('Failed to delete markup:', err);
+      alert('Failed to delete markup');
     }
   };
-
-  const handleResolveMarkup = async (markupId) => {
-    if (!token || !markupId) {
-      alert('Authentication error. Please refresh and try again.');
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/drawing-markups/${markupId}/resolve`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Resolve failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data && data.markup) {
-        setMarkups(markups.map(m => m.id === markupId ? data.markup : m));
-      }
-    } catch (error) {
-      console.error('Failed to resolve markup:', error);
-      alert('Failed to resolve markup: ' + error.message);
-    }
-  };
-
-  if (loading) {
-    return <div className="drawing-markup-loading">Loading drawing...</div>;
-  }
-
-  // For PDF files, show in iframe without markup capability (for now)
-  if (isPDF) {
-    return (
-      <div className="drawing-markup-container" ref={containerRef}>
-        <div className="drawing-markup-header">
-          <h2>Drawing Viewer (PDF)</h2>
-          <button onClick={onClose} className="close-button">✕</button>
-        </div>
-        <div style={{ padding: '20px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px', margin: '10px' }}>
-          <p style={{ margin: 0 }}>
-            <strong>Note:</strong> PDF markup is currently view-only. Please download the PDF to add annotations, or contact support to convert this drawing to an image format for full markup capabilities.
-          </p>
-        </div>
-        <div style={{ padding: '10px', height: 'calc(100vh - 150px)' }}>
-          <iframe
-            src={documentUrl}
-            title="Drawing PDF"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
-            }}
-          />
-        </div>
-        <div className="markups-sidebar">
-          <h3>Markups ({markups.length})</h3>
-          <div className="markups-list">
-            {markups.map(markup => (
-              <div key={markup.id} className={`markup-item ${markup.status}`}>
-                <div className="markup-header">
-                  <span className="markup-author">{markup.created_by_name}</span>
-                  <span className="markup-status">{markup.status}</span>
-                </div>
-                {markup.comment && <p className="markup-comment">{markup.comment}</p>}
-                <div className="markup-date">
-                  {new Date(markup.created_at).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="drawing-markup-container" ref={containerRef}>
-      <div className="drawing-markup-header">
-        <h2>Drawing Markup</h2>
-        <button onClick={onClose} className="close-button">✕</button>
-      </div>
+    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col">
+      {/* Toolbar */}
+      <div className="bg-white border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
+              <X className="w-6 h-6" />
+            </button>
+            <h3 className="font-semibold text-gray-900">Drawing Markup</h3>
+          </div>
 
-      <div className="drawing-toolbar">
-        <div className="tool-group">
-          <button
-            className={tool === 'pan' ? 'active' : ''}
-            onClick={() => setTool('pan')}
-            title="Pan (move drawing)">
-            ✋
-          </button>
-          <button
-            className={tool === 'pen' ? 'active' : ''}
-            onClick={() => setTool('pen')}
-            title="Pen">
-            ✏️
-          </button>
-          <button
-            className={tool === 'rectangle' ? 'active' : ''}
-            onClick={() => setTool('rectangle')}
-            title="Rectangle">
-            ▭
-          </button>
-          <button
-            className={tool === 'circle' ? 'active' : ''}
-            onClick={() => setTool('circle')}
-            title="Circle">
-            ⭕
-          </button>
-          <button
-            className={tool === 'arrow' ? 'active' : ''}
-            onClick={() => setTool('arrow')}
-            title="Arrow">
-            ➤
-          </button>
-          <button
-            className={tool === 'text' ? 'active' : ''}
-            onClick={() => setTool('text')}
-            title="Text">
-            T
-          </button>
-        </div>
+          <div className="flex items-center gap-2">
+            {/* Markup Tools */}
+            <button
+              onClick={() => setMarkupMode('rectangle')}
+              className={`p-2 rounded ${markupMode === 'rectangle' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Rectangle"
+            >
+              <Square className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setMarkupMode('circle')}
+              className={`p-2 rounded ${markupMode === 'circle' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Circle"
+            >
+              <Circle className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setMarkupMode('arrow')}
+              className={`p-2 rounded ${markupMode === 'arrow' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Arrow"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setMarkupMode('text')}
+              className={`p-2 rounded ${markupMode === 'text' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+              title="Text"
+            >
+              <Type className="w-5 h-5" />
+            </button>
 
-        <div className="tool-group">
-          <label>Color:</label>
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-          />
-          <label>Width:</label>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            value={lineWidth}
-            onChange={(e) => setLineWidth(parseInt(e.target.value))}
-          />
-          <span>{lineWidth}px</span>
-        </div>
+            <div className="w-px h-6 bg-gray-300 mx-2" />
 
-        <div className="tool-group">
-          <button onClick={() => handleZoom(0.1)}>+</button>
-          <span>{Math.round(scale * 100)}%</span>
-          <button onClick={() => handleZoom(-0.1)}>−</button>
-          <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }}>Reset</button>
-        </div>
-      </div>
+            {/* Zoom Controls */}
+            <button onClick={() => setZoom(Math.max(0.5, zoom - 0.25))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+              <ZoomOut className="w-5 h-5" />
+            </button>
+            <span className="text-sm text-gray-600 min-w-16 text-center">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(Math.min(3, zoom + 0.25))} className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+              <ZoomIn className="w-5 h-5" />
+            </button>
 
-      <div className="drawing-canvas-wrapper">
-        <div
-          className="drawing-canvas-container"
-          style={{
-            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-            transformOrigin: '0 0',
-            cursor: tool === 'pan' ? 'grab' : 'crosshair'
-          }}
-        >
-          <img
-            ref={imageRef}
-            src={documentUrl}
-            alt="Drawing"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            style={{ display: 'block' }}
-          />
-          <canvas
-            ref={canvasRef}
-            className="drawing-canvas"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            style={{ position: 'absolute', top: 0, left: 0 }}
-          />
-        </div>
-      </div>
-
-      <div className="markups-sidebar">
-        <h3>Markups ({markups.length})</h3>
-        <div className="markups-list">
-          {markups.map(markup => (
-            <div key={markup.id} className={`markup-item ${markup.status}`}>
-              <div className="markup-header">
-                <span className="markup-author">{markup.created_by_name}</span>
-                <span className="markup-status">{markup.status}</span>
-              </div>
-              {markup.comment && <p className="markup-comment">{markup.comment}</p>}
-              <div className="markup-actions">
-                {markup.status === 'open' && (
-                  <button onClick={() => handleResolveMarkup(markup.id)}>Resolve</button>
-                )}
-                <button onClick={() => handleDeleteMarkup(markup.id)}>Delete</button>
-              </div>
-              <div className="markup-date">
-                {new Date(markup.created_at).toLocaleString()}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {showCommentDialog && (
-        <div className="comment-dialog-overlay">
-          <div className="comment-dialog">
-            <h3>Add Comment (Optional)</h3>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Enter a comment about this markup..."
-              rows="4"
-            />
-            <div className="comment-dialog-actions">
-              <button onClick={saveMarkup}>Save</button>
-              <button onClick={() => {
-                setShowCommentDialog(false);
-                setComment('');
-                setSelectedMarkup(null);
-                redrawCanvas();
-              }}>Cancel</button>
-            </div>
+            {/* Page Navigation */}
+            {numPages > 1 && (
+              <>
+                <div className="w-px h-6 bg-gray-300 mx-2" />
+                <button
+                  onClick={() => pageNum > 1 && renderPage(pageNum - 1)}
+                  disabled={pageNum <= 1}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-sm text-gray-600">{pageNum} / {numPages}</span>
+                <button
+                  onClick={() => pageNum < numPages && renderPage(pageNum + 1)}
+                  disabled={pageNum >= numPages}
+                  className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* PDF Viewer Area */}
+        <div className="flex-1 overflow-auto bg-gray-800 p-8 flex items-start justify-center">
+          {pdfLoading ? (
+            <div className="text-white text-center">
+              <div className="animate-spin w-8 h-8 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
+              <p>Loading PDF...</p>
+            </div>
+          ) : pdfError ? (
+            <div className="text-center text-white">
+              <p className="text-red-400 mb-2">{pdfError}</p>
+              <p className="text-sm text-gray-400">Document URL: {documentUrl}</p>
+            </div>
+          ) : (
+            <div className="relative shadow-2xl">
+              {/* PDF Canvas */}
+              <canvas ref={pdfCanvasRef} className="block bg-white" />
+              {/* Markup Canvas (overlaid on top) */}
+              <canvas
+                ref={markupCanvasRef}
+                className="absolute top-0 left-0"
+                style={{ cursor: markupMode ? 'crosshair' : 'default' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Markups Sidebar */}
+        <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
+          <h4 className="font-semibold text-gray-900 mb-4">Markups ({markups.length})</h4>
+          {markups.length === 0 ? (
+            <p className="text-sm text-gray-500">No markups yet. Select a tool above and draw on the PDF.</p>
+          ) : (
+            <div className="space-y-3">
+              {markups.map(markup => (
+                <div key={markup.id} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        {markup.markup_data.type === 'rectangle' && <Square className="w-4 h-4" style={{ color: markup.markup_data.color }} />}
+                        {markup.markup_data.type === 'circle' && <Circle className="w-4 h-4" style={{ color: markup.markup_data.color }} />}
+                        {markup.markup_data.type === 'arrow' && <ArrowRight className="w-4 h-4" style={{ color: markup.markup_data.color }} />}
+                        {markup.markup_data.type === 'text' && <Type className="w-4 h-4" style={{ color: markup.markup_data.color }} />}
+                        <span className="text-sm font-medium text-gray-900 capitalize">{markup.markup_data.type}</span>
+                      </div>
+                      {markup.markup_data.text && (
+                        <p className="text-sm text-gray-700 mb-1">{markup.markup_data.text}</p>
+                      )}
+                      {markup.comment && (
+                        <p className="text-sm text-gray-700 mb-1">{markup.comment}</p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        {markup.created_by_name || 'You'} • {new Date(markup.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteMarkup(markup.id)}
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
