@@ -155,6 +155,13 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
       console.log('Processed markups:', loadedMarkups);
       setMarkups(loadedMarkups);
+
+      // Redraw markups after loading them
+      setTimeout(() => {
+        if (markupCanvasRef.current) {
+          drawMarkups();
+        }
+      }, 100);
     } catch (err) {
       console.error('Failed to load markups:', err);
     }
@@ -326,13 +333,9 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
       const data = await response.json();
       console.log('Markup saved successfully:', data);
 
-      if (data && data.markup) {
-        setMarkups([...markups, { ...data.markup, markup_data: markupData }]);
-        alert('Markup saved successfully');
-      } else {
-        console.error('Invalid response format:', data);
-        throw new Error('Invalid response from server');
-      }
+      // Reload all markups from database to avoid duplicates
+      await loadMarkups();
+      alert('Markup saved successfully');
     } catch (err) {
       console.error('Failed to save markup:', err);
       alert('Failed to save markup: ' + err.message);
