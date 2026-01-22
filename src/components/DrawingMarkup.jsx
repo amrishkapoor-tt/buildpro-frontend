@@ -244,6 +244,17 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
     }
   }, [markups, currentMarkup, isDrawing, pdfLoading, pageNum]);
 
+  // Additional effect to ensure markups are drawn after initial PDF load
+  useEffect(() => {
+    if (!pdfLoading && markups.length > 0 && markupCanvasRef.current && pdfCanvasRef.current) {
+      // Small delay to ensure canvas is fully ready
+      const timer = setTimeout(() => {
+        drawMarkups();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [pdfLoading, markups.length]);
+
   const getCanvasCoords = (e) => {
     const canvas = markupCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
