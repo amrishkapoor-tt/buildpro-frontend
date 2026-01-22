@@ -18,9 +18,9 @@ import { PermissionProvider } from './contexts/PermissionContext';
 // IMPORTANT: Update this to your Render backend URL
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
-const BuildProProduction = () => {
-  const [token, setToken] = useState(localStorage.getItem('buildpro_token'));
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('buildpro_user') || 'null'));
+const FreeCoreProduction = () => {
+  const [token, setToken] = useState(localStorage.getItem('freecore_token'));
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('freecore_user') || 'null'));
   const [currentView, setCurrentView] = useState('dashboard');
   const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -56,7 +56,7 @@ const BuildProProduction = () => {
   const apiCall = async (endpoint, options = {}) => {
     try {
       setError(null);
-      const currentToken = token || localStorage.getItem('buildpro_token');
+      const currentToken = token || localStorage.getItem('freecore_token');
       
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
@@ -90,8 +90,8 @@ const BuildProProduction = () => {
       
       setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('buildpro_token', data.token);
-      localStorage.setItem('buildpro_user', JSON.stringify(data.user));
+      localStorage.setItem('freecore_token', data.token);
+      localStorage.setItem('freecore_user', JSON.stringify(data.user));
       setShowLogin(false);
       await loadProjects();
     } catch (error) {
@@ -112,8 +112,8 @@ const BuildProProduction = () => {
       
       setToken(data.token);
       setUser(data.user);
-      localStorage.setItem('buildpro_token', data.token);
-      localStorage.setItem('buildpro_user', JSON.stringify(data.user));
+      localStorage.setItem('freecore_token', data.token);
+      localStorage.setItem('freecore_user', JSON.stringify(data.user));
       setShowRegister(false);
       setShowLogin(false);
       await loadProjects();
@@ -127,8 +127,8 @@ const BuildProProduction = () => {
   const handleLogout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('buildpro_token');
-    localStorage.removeItem('buildpro_user');
+    localStorage.removeItem('freecore_token');
+    localStorage.removeItem('freecore_user');
     setShowLogin(true);
     setProjects([]);
     setSelectedProject(null);
@@ -182,7 +182,7 @@ const BuildProProduction = () => {
           <div className="flex items-center justify-center mb-8">
             <Building2 className="w-16 h-16 text-blue-600 mr-3" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">BuildPro</h1>
+              <h1 className="text-3xl font-bold text-gray-900">FreeCore</h1>
               <p className="text-sm text-gray-600">Construction Management</p>
             </div>
           </div>
@@ -318,7 +318,7 @@ const BuildProProduction = () => {
             <div className="flex items-center gap-3">
               <Building2 className="w-8 h-8 text-blue-600" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">BuildPro</h1>
+                <h1 className="text-2xl font-bold text-gray-900">FreeCore</h1>
                 <p className="text-xs text-green-600">● Production</p>
               </div>
             </div>
@@ -534,4 +534,4 @@ const BuildProProduction = () => {
   );
 };
 
-export default BuildProProduction;
+export default FreeCoreProduction;
