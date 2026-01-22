@@ -5,7 +5,7 @@ import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, 
 import Documents from './components/Documents';
 import RFIs from './components/RFIs';
 import Team from './components/Team';
-import Drawings from './components/Drawings';
+import Drawings from './pages/Drawings';
 import Photos from './components/Photos';
 import Submittals from './components/Submittals';
 import DailyLogs from './components/DailyLogs';
