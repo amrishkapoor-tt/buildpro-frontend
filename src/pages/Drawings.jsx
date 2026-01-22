@@ -516,6 +516,7 @@ const Drawings = ({ projectId, token }) => {
       {viewingDrawing && (
         <DrawingViewer
           document={viewingDrawing}
+          token={token}
           onClose={() => setViewingDrawing(null)}
           onUpdate={loadDrawings}
         />
@@ -525,6 +526,7 @@ const Drawings = ({ projectId, token }) => {
       {showASIManager && (
         <ASIManager
           projectId={projectId}
+          token={token}
           onClose={() => setShowASIManager(false)}
         />
       )}

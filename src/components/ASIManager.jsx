@@ -3,7 +3,7 @@ import './ASIManager.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-const ASIManager = ({ projectId, onClose }) => {
+const ASIManager = ({ projectId, token, onClose }) => {
   const [asis, setAsis] = useState([]);
   const [selectedASI, setSelectedASI] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +23,6 @@ const ASIManager = ({ projectId, onClose }) => {
     estimated_cost_impact: '',
     estimated_schedule_impact_days: ''
   });
-
-  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
     loadASIs();

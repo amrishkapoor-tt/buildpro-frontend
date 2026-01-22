@@ -3,7 +3,7 @@ import './DrawingMarkup.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
+const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   const [markups, setMarkups] = useState([]);
   const [workflowState, setWorkflowState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,8 +24,6 @@ const DrawingMarkup = ({ documentId, documentUrl, onClose }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
-
-  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
     if (documentId && token) {

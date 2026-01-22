@@ -4,7 +4,7 @@ import './DrawingViewer.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
-const DrawingViewer = ({ document, onClose, onUpdate }) => {
+const DrawingViewer = ({ document, token, onClose, onUpdate }) => {
   const [activeTab, setActiveTab] = useState('info');
   const [workflowState, setWorkflowState] = useState(null);
   const [workflowHistory, setWorkflowHistory] = useState([]);
@@ -20,8 +20,6 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [users, setUsers] = useState([]);
-
-  const token = localStorage.getItem('freecore_token');
 
   useEffect(() => {
     if (document && document.id && token) {
@@ -263,6 +261,7 @@ const DrawingViewer = ({ document, onClose, onUpdate }) => {
       <DrawingMarkup
         documentId={document.id}
         documentUrl={`${API_URL}/documents/${document.id}/preview?token=${token}`}
+        token={token}
         onClose={() => {
           setShowMarkupCanvas(false);
           loadDrawingData();
