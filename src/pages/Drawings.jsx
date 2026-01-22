@@ -123,7 +123,10 @@ const Drawings = ({ projectId, token }) => {
         body: formData
       });
 
-      if (!response.ok) throw new Error('Failed to upload drawing');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+      }
 
       const data = await response.json();
 
