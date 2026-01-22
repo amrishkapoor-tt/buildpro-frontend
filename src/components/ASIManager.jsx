@@ -9,6 +9,9 @@ const ASIManager = ({ projectId, token, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
+  const [availableDrawings, setAvailableDrawings] = useState([]);
+  const [showLinkDrawingModal, setShowLinkDrawingModal] = useState(false);
+  const [linkingToASI, setLinkingToASI] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -24,9 +27,37 @@ const ASIManager = ({ projectId, token, onClose }) => {
     estimated_schedule_impact_days: ''
   });
 
+  // Link drawing form state
+  const [linkDrawingForm, setLinkDrawingForm] = useState({
+    document_id: '',
+    impact_description: '',
+    requires_revision: true
+  });
+
   useEffect(() => {
     loadASIs();
+    loadAvailableDrawings();
   }, [projectId, filterStatus]);
+
+  const loadAvailableDrawings = async () => {
+    try {
+      const response = await fetch(`${API_URL}/projects/${projectId}/drawings`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        console.log('Failed to load drawings:', response.status);
+        setAvailableDrawings([]);
+        return;
+      }
+
+      const data = await response.json();
+      setAvailableDrawings(data.drawings || data.documents || []);
+    } catch (error) {
+      console.error('Error loading drawings:', error);
+      setAvailableDrawings([]);
+    }
+  };
 
   const loadASIs = async () => {
     try {
@@ -146,23 +177,34 @@ const ASIManager = ({ projectId, token, onClose }) => {
     }
   };
 
-  const handleLinkDrawing = async (asiId) => {
-    const documentId = prompt('Enter drawing document ID to link:');
-    if (!documentId) return;
+  const handleLinkDrawing = (asiId) => {
+    setLinkingToASI(asiId);
+    setLinkDrawingForm({
+      document_id: '',
+      impact_description: '',
+      requires_revision: true
+    });
+    setShowLinkDrawingModal(true);
+  };
 
-    const impactDescription = prompt('Describe the impact (optional):');
-    const requiresRevision = window.confirm('Does this require a drawing revision?');
+  const handleSubmitLinkDrawing = async (e) => {
+    e.preventDefault();
+
+    if (!linkDrawingForm.document_id) {
+      alert('Please select a drawing');
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_URL}/asis/${asiId}/drawings/${documentId}`, {
+      const response = await fetch(`${API_URL}/asis/${linkingToASI}/drawings/${linkDrawingForm.document_id}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          impact_description: impactDescription || null,
-          requires_revision: requiresRevision
+          impact_description: linkDrawingForm.impact_description || null,
+          requires_revision: linkDrawingForm.requires_revision
         })
       });
 
@@ -171,7 +213,9 @@ const ASIManager = ({ projectId, token, onClose }) => {
         throw new Error(error.error || 'Failed to link drawing');
       }
 
-      loadASIDetails(asiId);
+      loadASIDetails(linkingToASI);
+      setShowLinkDrawingModal(false);
+      setLinkingToASI(null);
       alert('Drawing linked successfully');
     } catch (error) {
       console.error('Failed to link drawing:', error);
@@ -546,6 +590,64 @@ const ASIManager = ({ projectId, token, onClose }) => {
             )}
           </div>
         </div>
+
+        {/* Link Drawing Modal */}
+        {showLinkDrawingModal && (
+          <div className="modal-overlay" onClick={() => setShowLinkDrawingModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Link Drawing to ASI</h3>
+                <button onClick={() => setShowLinkDrawingModal(false)} className="close-button">✕</button>
+              </div>
+              <form onSubmit={handleSubmitLinkDrawing}>
+                <div className="form-group">
+                  <label>Select Drawing *</label>
+                  <select
+                    value={linkDrawingForm.document_id}
+                    onChange={(e) => setLinkDrawingForm({ ...linkDrawingForm, document_id: e.target.value })}
+                    required
+                    className="drawing-select"
+                  >
+                    <option value="">-- Select a drawing --</option>
+                    {availableDrawings.map(drawing => (
+                      <option key={drawing.id} value={drawing.id}>
+                        {drawing.drawing_number || 'N/A'} - {drawing.name || drawing.sheet_title || 'Untitled'}
+                        {drawing.discipline ? ` (${drawing.discipline})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Impact Description</label>
+                  <textarea
+                    value={linkDrawingForm.impact_description}
+                    onChange={(e) => setLinkDrawingForm({ ...linkDrawingForm, impact_description: e.target.value })}
+                    rows="3"
+                    placeholder="Describe how this ASI affects this drawing..."
+                  />
+                </div>
+
+                <div className="form-group-checkbox">
+                  <input
+                    type="checkbox"
+                    id="requires_revision"
+                    checked={linkDrawingForm.requires_revision}
+                    onChange={(e) => setLinkDrawingForm({ ...linkDrawingForm, requires_revision: e.target.checked })}
+                  />
+                  <label htmlFor="requires_revision">Requires Drawing Revision</label>
+                </div>
+
+                <div className="form-actions">
+                  <button type="submit" className="primary-button">Link Drawing</button>
+                  <button type="button" onClick={() => setShowLinkDrawingModal(false)} className="secondary-button">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
