@@ -121,16 +121,40 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
   }, [zoom]);
 
   const loadMarkups = async () => {
+    if (!documentId || !token) {
+      console.error('Cannot load markups: missing documentId or token');
+      return;
+    }
+
     try {
+      console.log('Loading markups for document:', documentId);
+
       const response = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) return;
+
+      console.log('Load markups response status:', response.status);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log('No markups found (404) - this is normal for new drawings');
+          setMarkups([]);
+          return;
+        }
+        console.error('Failed to load markups:', response.status);
+        return;
+      }
+
       const data = await response.json();
-      setMarkups((data.markups || []).map(m => ({
+      console.log('Loaded markups:', data);
+
+      const loadedMarkups = (data.markups || []).map(m => ({
         ...m,
         markup_data: typeof m.markup_data === 'string' ? JSON.parse(m.markup_data) : m.markup_data
-      })));
+      }));
+
+      console.log('Processed markups:', loadedMarkups);
+      setMarkups(loadedMarkups);
     } catch (err) {
       console.error('Failed to load markups:', err);
     }
@@ -273,6 +297,8 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
 
   const saveMarkup = async (markupData) => {
     try {
+      console.log('Saving markup:', { documentId, markupData });
+
       const response = await fetch(`${API_URL}/drawings/${documentId}/markups`, {
         method: 'POST',
         headers: {
@@ -288,11 +314,28 @@ const DrawingMarkup = ({ documentId, documentUrl, token, onClose }) => {
           comment: markupData.text || ''
         })
       });
+
+      console.log('Save response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Save failed:', errorData);
+        throw new Error(errorData.error || errorData.message || `Save failed with status ${response.status}`);
+      }
+
       const data = await response.json();
-      setMarkups([...markups, { ...data.markup, markup_data: markupData }]);
+      console.log('Markup saved successfully:', data);
+
+      if (data && data.markup) {
+        setMarkups([...markups, { ...data.markup, markup_data: markupData }]);
+        alert('Markup saved successfully');
+      } else {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response from server');
+      }
     } catch (err) {
       console.error('Failed to save markup:', err);
-      alert('Failed to save markup');
+      alert('Failed to save markup: ' + err.message);
     }
   };
 
