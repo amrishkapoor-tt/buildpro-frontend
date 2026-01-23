@@ -254,7 +254,7 @@ const ASIManager = ({ projectId, token, onClose }) => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 403) {
-          throw new Error('You do not have permission to delete ASIs. Superintendent role required.');
+          throw new Error('You do not have permission to delete ASIs. Engineer role or higher required.');
         }
         throw new Error(errorData.error || errorData.message || `Failed to delete ASI (${response.status})`);
       }
