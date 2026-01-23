@@ -41,7 +41,7 @@ const ASIManager = ({ projectId, token, onClose }) => {
 
   const loadAvailableDrawings = async () => {
     try {
-      const response = await fetch(`${API_URL}/projects/${projectId}/drawings`, {
+      const response = await fetch(`${API_URL}/projects/${projectId}/documents?category=Drawings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -52,7 +52,7 @@ const ASIManager = ({ projectId, token, onClose }) => {
       }
 
       const data = await response.json();
-      setAvailableDrawings(data.drawings || data.documents || []);
+      setAvailableDrawings(data.documents || []);
     } catch (error) {
       console.error('Error loading drawings:', error);
       setAvailableDrawings([]);
