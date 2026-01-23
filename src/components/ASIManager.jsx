@@ -251,7 +251,13 @@ const ASIManager = ({ projectId, token, onClose }) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error('Failed to delete ASI');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          throw new Error('You do not have permission to delete ASIs. Superintendent role required.');
+        }
+        throw new Error(errorData.error || errorData.message || `Failed to delete ASI (${response.status})`);
+      }
 
       setAsis(asis.filter(a => a.id !== asiId));
       if (selectedASI && selectedASI.id === asiId) {
