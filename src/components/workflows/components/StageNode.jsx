@@ -52,11 +52,21 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
         {/* Connection handle for START node */}
         {stage.type === 'start' && onStartConnect && (
           <button
-            className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-10"
+            className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-5 h-5 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-30 cursor-pointer"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               onStartConnect(stage.id);
             }}
+            onDragStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            draggable={false}
             title="Click to connect to another stage"
           />
         )}
@@ -122,11 +132,21 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
       {/* Connection handles - right side for outgoing */}
       {onStartConnect && (
         <button
-          className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-10"
+          className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-5 h-5 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-30 cursor-pointer"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
           onClick={(e) => {
             e.stopPropagation();
+            e.preventDefault();
             onStartConnect(stage.id);
           }}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          draggable={false}
           title="Click to connect to another stage"
         />
       )}
