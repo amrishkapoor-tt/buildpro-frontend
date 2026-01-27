@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3 } from 'lucide-react';
+import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity } from 'lucide-react';
 
 // Import all module components
 import Documents from './components/Documents';
@@ -13,6 +13,7 @@ import PunchList from './components/PunchList';
 import Financials from './components/Financials';
 import Schedule from './components/Schedule';
 import Dashboard from './components/Dashboard';
+import WorkflowTasks from './components/workflows/WorkflowTasks';
 import { PermissionProvider } from './contexts/PermissionContext';
 
 // IMPORTANT: Update this to your Render backend URL
@@ -352,6 +353,7 @@ const FreeCoreProduction = () => {
               { id: 'photos', icon: Camera, label: 'Photos' },
               { id: 'rfis', icon: FileText, label: 'RFIs' },
               { id: 'submittals', icon: Send, label: 'Submittals' },
+              { id: 'workflows', icon: Activity, label: 'Workflows' },
               { id: 'dailylogs', icon: Calendar, label: 'Daily Logs' },
               { id: 'punch', icon: Wrench, label: 'Punch List' },
               { id: 'financials', icon: DollarSign, label: 'Financials' },
@@ -441,6 +443,7 @@ const FreeCoreProduction = () => {
                   {currentView === 'drawings' && <Drawings projectId={selectedProject.id} token={token} />}
                   {currentView === 'photos' && <Photos projectId={selectedProject.id} token={token} />}
                   {currentView === 'submittals' && <Submittals projectId={selectedProject.id} token={token} />}
+                  {currentView === 'workflows' && <WorkflowTasks projectId={selectedProject.id} token={token} />}
                   {currentView === 'dailylogs' && <DailyLogs projectId={selectedProject.id} token={token} />}
                   {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
                   {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}

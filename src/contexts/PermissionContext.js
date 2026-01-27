@@ -109,7 +109,17 @@ export const PermissionProvider = ({ children, projectId, token }) => {
       'manage_team': hasPermission('project_manager'),
       'add_member': hasPermission('project_manager'),
       'remove_member': hasPermission('project_manager'),
-      'change_role': hasPermission('project_manager')
+      'change_role': hasPermission('project_manager'),
+      // Workflows
+      'view_workflows': hasPermission('viewer'),
+      'start_workflow': hasPermission('subcontractor'),
+      'approve_workflow': hasPermission('engineer'),
+      'reject_workflow': hasPermission('engineer'),
+      'cancel_workflow': hasPermission('superintendent'),
+      'create_workflow_template': hasPermission('project_manager'),
+      'edit_workflow_template': hasPermission('project_manager'),
+      'delete_workflow_template': hasPermission('admin'),
+      'view_workflow_analytics': hasPermission('superintendent')
     };
 
     return permissions[action] || false;

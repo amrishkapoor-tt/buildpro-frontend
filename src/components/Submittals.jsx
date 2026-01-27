@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, X, Send, CheckCircle, XCircle, AlertTriangle, Clock, Search } from 'lucide-react';
+import { FileText, Plus, X, Send, CheckCircle, XCircle, AlertTriangle, Clock, Search, Activity, Play } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import WorkflowStatusWidget from './workflows/WorkflowStatusWidget';
+import WorkflowActionModal from './workflows/WorkflowActionModal';
+import WorkflowHistoryModal from './workflows/WorkflowHistoryModal';
 import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -266,6 +269,12 @@ const Submittals = ({ projectId, token }) => {
                         <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(submittal.status)}`}>
                           {submittal.status.replace('_', ' ')}
                         </span>
+                        {submittal.workflow_status === 'active' && (
+                          <span className="flex items-center gap-1 text-xs text-blue-600">
+                            <Activity className="w-3 h-3" />
+                            {submittal.workflow_stage_name || 'In Workflow'}
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-gray-900 mb-1">{submittal.title}</p>
                       <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -448,6 +457,21 @@ const Submittals = ({ projectId, token }) => {
                 <p>Type: {selectedSubmittal.type?.replace('_', ' ')}</p>
                 <p>Package: {selectedSubmittal.package_title}</p>
               </div>
+
+              {/* Workflow Status */}
+              <div className="border-t border-b border-gray-200 py-4">
+                <WorkflowStatusWidget
+                  entityType="submittal"
+                  entityId={selectedSubmittal.id}
+                  projectId={projectId}
+                  token={token}
+                  onTransition={(workflowId, transition) => {
+                    // Handle workflow transition - refresh data
+                    loadSubmittals();
+                  }}
+                />
+              </div>
+
               {selectedSubmittal.status === 'draft' && (
                 <button
                   onClick={() => {
@@ -457,6 +481,32 @@ const Submittals = ({ projectId, token }) => {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Submit for Review
+                </button>
+              )}
+
+              {selectedSubmittal.status === 'submitted' && !selectedSubmittal.workflow_id && can('start_workflow') && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await apiCall('/workflows/start', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          entity_type: 'submittal',
+                          entity_id: selectedSubmittal.id,
+                          project_id: projectId
+                        })
+                      });
+                      alert('Workflow started successfully!');
+                      loadSubmittals();
+                      loadSubmittalDetail(selectedSubmittal.id);
+                    } catch (error) {
+                      alert('Failed to start workflow: ' + error.message);
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Start Approval Workflow
                 </button>
               )}
 
