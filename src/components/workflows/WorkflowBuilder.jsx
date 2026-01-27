@@ -453,7 +453,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             />
 
             {/* Render transitions (arrows) */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1 }}>
+            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
               <defs>
                 <marker
                   id="arrowhead"
@@ -595,17 +595,18 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             </svg>
 
             {/* Render stages */}
-            <div className="relative" style={{ zIndex: 2 }}>
+            <div className="relative" style={{ zIndex: 5 }}>
               {stages.map(stage => (
                 <StageNode
                   key={stage.id}
                   stage={stage}
                   selected={selectedStage?.id === stage.id}
-                  onSelect={(s) => {
-                    if (connecting) {
-                      // Complete connection if in connecting mode
+                  onSelect={(s, event) => {
+                    // Only handle connection completion if clicking the stage body, not the button
+                    if (connecting && event && !event.defaultPrevented) {
+                      console.log('Completing connection to:', stage.id);
                       handleEndConnect(stage.id);
-                    } else {
+                    } else if (!connecting) {
                       setSelectedStage(s);
                     }
                   }}

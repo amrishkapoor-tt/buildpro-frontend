@@ -39,7 +39,7 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
           selected ? 'ring-2 ring-blue-500' : ''
         }`}
         style={{ left: stage.x, top: stage.y, width: 100 }}
-        onClick={() => onSelect(stage)}
+        onClick={(e) => onSelect(stage, e)}
       >
         <div className={`rounded-full p-3 text-center font-semibold ${
           stage.type === 'start'
