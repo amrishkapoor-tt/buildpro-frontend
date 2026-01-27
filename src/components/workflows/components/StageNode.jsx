@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle, AlertCircle, Bell, GitBranch, Circle } from 'lucide-react';
 
-const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect }) => {
+const StageNode = ({ stage, selected, connecting, onSelect, onMove, onDelete, onStartConnect }) => {
   const getStageIcon = (type) => {
     switch (type) {
       case 'approval':
@@ -39,7 +39,12 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
           selected ? 'ring-2 ring-blue-500' : ''
         }`}
         style={{ left: stage.x, top: stage.y, width: 100 }}
-        onClick={(e) => onSelect(stage, e)}
+        onClick={(e) => {
+          // Don't select if we're in connecting mode and clicking the button
+          if (!connecting || e.target.tagName !== 'BUTTON') {
+            onSelect(stage, e);
+          }
+        }}
       >
         <div className={`rounded-full p-3 text-center font-semibold ${
           stage.type === 'start'
@@ -76,18 +81,25 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
 
   return (
     <div
-      className={`absolute cursor-move bg-white border-2 rounded-lg p-3 shadow-sm ${
+      className={`absolute bg-white border-2 rounded-lg p-3 shadow-sm ${
         selected ? 'border-blue-500 shadow-lg' : 'border-gray-300'
-      }`}
+      } ${connecting ? 'cursor-pointer' : 'cursor-move'}`}
       style={{ left: stage.x, top: stage.y, width: 180 }}
-      draggable
+      draggable={!connecting}
       onDragEnd={(e) => {
-        const rect = e.target.parentElement.getBoundingClientRect();
-        const newX = e.clientX - rect.left - 90; // Center the node
-        const newY = e.clientY - rect.top - 40;
-        onMove(stage.id, newX, newY);
+        if (!connecting) {
+          const rect = e.target.parentElement.getBoundingClientRect();
+          const newX = e.clientX - rect.left - 90; // Center the node
+          const newY = e.clientY - rect.top - 40;
+          onMove(stage.id, newX, newY);
+        }
       }}
-      onClick={(e) => onSelect(stage, e)}
+      onClick={(e) => {
+        // Don't select if we're in connecting mode and clicking the button
+        if (!connecting || e.target.tagName !== 'BUTTON') {
+          onSelect(stage, e);
+        }
+      }}
     >
       {/* Header */}
       <div className={`flex items-center gap-2 mb-2 p-2 rounded ${getStageColor(stage.type)}`}>

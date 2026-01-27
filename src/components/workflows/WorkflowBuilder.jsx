@@ -594,18 +594,20 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               })}
             </svg>
 
-            {/* Render stages */}
-            <div className="relative" style={{ zIndex: 5 }}>
+            {/* Render stages - lower z-index so arrows appear on top */}
+            <div className="relative" style={{ zIndex: 1 }}>
               {stages.map(stage => (
                 <StageNode
                   key={stage.id}
                   stage={stage}
                   selected={selectedStage?.id === stage.id}
+                  connecting={connecting}
                   onSelect={(s, event) => {
-                    // Only handle connection completion if clicking the stage body, not the button
-                    if (connecting && event && !event.defaultPrevented) {
-                      console.log('Completing connection to:', stage.id);
-                      handleEndConnect(stage.id);
+                    console.log('Stage onClick fired:', s.id, 'connecting:', connecting);
+                    // If we're in connecting mode, complete the connection
+                    if (connecting && connecting !== s.id) {
+                      console.log('Completing connection from', connecting, 'to', s.id);
+                      handleEndConnect(s.id);
                     } else if (!connecting) {
                       setSelectedStage(s);
                     }
