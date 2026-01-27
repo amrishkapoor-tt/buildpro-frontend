@@ -20,6 +20,8 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
   const [transitions, setTransitions] = useState([]);
   const [selectedStage, setSelectedStage] = useState(null);
   const [connecting, setConnecting] = useState(null); // For drawing connections
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [editingTransition, setEditingTransition] = useState(null);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -103,20 +105,34 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
     e.preventDefault();
   };
 
-  const handleConnectStages = (fromStageId, toStageId) => {
+  const handleStartConnect = (stageId) => {
+    setConnecting(stageId);
+  };
+
+  const handleEndConnect = (toStageId) => {
+    if (!connecting) return;
+
+    // Can't connect to self
+    if (connecting === toStageId) {
+      setConnecting(null);
+      return;
+    }
+
     // Check if transition already exists
     const exists = transitions.some(t =>
-      t.from_stage_id === fromStageId && t.to_stage_id === toStageId
+      t.from_stage_id === connecting && t.to_stage_id === toStageId
     );
 
     if (exists) {
       alert('Transition already exists between these stages');
+      setConnecting(null);
       return;
     }
 
+    // Create the transition and open editor
     const newTransition = {
       id: generateId(),
-      from_stage_id: fromStageId,
+      from_stage_id: connecting,
       to_stage_id: toStageId,
       transition_action: 'approve',
       transition_name: 'Approve',
@@ -124,7 +140,33 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
     };
 
     setTransitions([...transitions, newTransition]);
+    setEditingTransition(newTransition);
     setConnecting(null);
+  };
+
+  const handleConnectStages = (fromStageId, toStageId) => {
+    handleEndConnect(toStageId);
+  };
+
+  const handleMouseMove = (e) => {
+    if (connecting && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setMousePos({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+    }
+  };
+
+  const handleUpdateTransition = (transitionId, updates) => {
+    setTransitions(transitions.map(t =>
+      t.id === transitionId ? { ...t, ...updates } : t
+    ));
+  };
+
+  const handleDeleteTransition = (transitionId) => {
+    setTransitions(transitions.filter(t => t.id !== transitionId));
+    setEditingTransition(null);
   };
 
   const handleCanvasClick = (e) => {
@@ -292,15 +334,26 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             <ul className="space-y-1 list-disc list-inside">
               <li>Drag stages onto canvas</li>
               <li>Click stage to edit properties</li>
+              <li>Click blue dot to connect stages</li>
+              <li>Click connecting stage to finish</li>
+              <li>Click transition text to edit</li>
               <li>Drag stages to reposition</li>
               <li>Delete with × button</li>
             </ul>
           </div>
 
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-            <p className="font-semibold mb-1">Note:</p>
-            <p>Transitions between stages need to be configured via the backend API.</p>
-          </div>
+          {connecting && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+              <p className="font-semibold mb-1">Connecting Mode Active</p>
+              <p>Click on another stage to create a transition</p>
+              <button
+                onClick={() => setConnecting(null)}
+                className="mt-2 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Canvas */}
@@ -311,6 +364,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             onDrop={handleCanvasDrop}
             onDragOver={handleCanvasDragOver}
             onClick={handleCanvasClick}
+            onMouseMove={handleMouseMove}
           >
             {/* Grid pattern */}
             <div
@@ -334,7 +388,39 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                 >
                   <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
                 </marker>
+                <marker
+                  id="arrowhead-connecting"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="9"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+                </marker>
               </defs>
+
+              {/* Connection in progress */}
+              {connecting && (
+                <g>
+                  <path
+                    d={`M ${(() => {
+                      const from = stages.find(s => s.id === connecting);
+                      if (!from) return '0 0 L 0 0';
+                      const fromX = from.x + (from.type === 'start' || from.type === 'end' ? 100 : 180);
+                      const fromY = from.y + (from.type === 'start' || from.type === 'end' ? 20 : 40);
+                      return `${fromX} ${fromY} L ${mousePos.x} ${mousePos.y}`;
+                    })()}`}
+                    stroke="#9ca3af"
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    fill="none"
+                    markerEnd="url(#arrowhead-connecting)"
+                  />
+                </g>
+              )}
+
+              {/* Existing transitions */}
               {transitions.map(t => {
                 const from = stages.find(s => s.id === t.from_stage_id);
                 const to = stages.find(s => s.id === t.to_stage_id);
@@ -349,7 +435,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                 const midY = (fromY + toY) / 2;
 
                 return (
-                  <g key={t.id}>
+                  <g key={t.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }}>
                     <path
                       d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
                       stroke="#3b82f6"
@@ -361,7 +447,8 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                       x={midX}
                       y={midY - 5}
                       textAnchor="middle"
-                      className="text-xs fill-blue-700 font-medium"
+                      className="text-xs fill-blue-700 font-medium cursor-pointer"
+                      onClick={() => setEditingTransition(t)}
                     >
                       {t.transition_name}
                     </text>
@@ -377,9 +464,17 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                   key={stage.id}
                   stage={stage}
                   selected={selectedStage?.id === stage.id}
-                  onSelect={setSelectedStage}
+                  onSelect={(s) => {
+                    if (connecting) {
+                      // Complete connection if in connecting mode
+                      handleEndConnect(stage.id);
+                    } else {
+                      setSelectedStage(s);
+                    }
+                  }}
                   onMove={handleStageMove}
                   onDelete={stage.type !== 'start' && stage.type !== 'end' ? handleStageDelete : null}
+                  onStartConnect={handleStartConnect}
                 />
               ))}
             </div>
@@ -403,6 +498,100 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           />
         </div>
       </div>
+
+      {/* Transition Editor Modal */}
+      {editingTransition && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Transition</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Transition Name
+                </label>
+                <input
+                  type="text"
+                  value={editingTransition.transition_name}
+                  onChange={(e) => {
+                    const updated = { ...editingTransition, transition_name: e.target.value };
+                    setEditingTransition(updated);
+                    handleUpdateTransition(editingTransition.id, { transition_name: e.target.value });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Approve, Reject, Request Changes"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Action Type
+                </label>
+                <select
+                  value={editingTransition.transition_action}
+                  onChange={(e) => {
+                    const updated = { ...editingTransition, transition_action: e.target.value };
+                    setEditingTransition(updated);
+                    handleUpdateTransition(editingTransition.id, { transition_action: e.target.value });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="approve">Approve</option>
+                  <option value="reject">Reject</option>
+                  <option value="revise">Request Changes</option>
+                  <option value="forward">Forward</option>
+                  <option value="return">Return</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="auto-transition"
+                  checked={editingTransition.is_automatic}
+                  onChange={(e) => {
+                    const updated = { ...editingTransition, is_automatic: e.target.checked };
+                    setEditingTransition(updated);
+                    handleUpdateTransition(editingTransition.id, { is_automatic: e.target.checked });
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="auto-transition" className="text-sm text-gray-700">
+                  Automatic transition (no user action required)
+                </label>
+              </div>
+
+              <div className="pt-2 text-xs text-gray-500">
+                <p className="mb-1">
+                  <strong>From:</strong> {stages.find(s => s.id === editingTransition.from_stage_id)?.name || 'Unknown'}
+                </p>
+                <p>
+                  <strong>To:</strong> {stages.find(s => s.id === editingTransition.to_stage_id)?.name || 'Unknown'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditingTransition(null)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Done
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete this transition?')) {
+                    handleDeleteTransition(editingTransition.id);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

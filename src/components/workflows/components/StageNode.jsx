@@ -1,7 +1,7 @@
 import React from 'react';
-import { CheckCircle, AlertCircle, Bell, GitBranch } from 'lucide-react';
+import { CheckCircle, AlertCircle, Bell, GitBranch, Circle } from 'lucide-react';
 
-const StageNode = ({ stage, selected, onSelect, onMove, onDelete }) => {
+const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect }) => {
   const getStageIcon = (type) => {
     switch (type) {
       case 'approval':
@@ -48,6 +48,18 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete }) => {
         }`}>
           {stage.type === 'start' ? 'START' : 'END'}
         </div>
+
+        {/* Connection handle for START node */}
+        {stage.type === 'start' && onStartConnect && (
+          <button
+            className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartConnect(stage.id);
+            }}
+            title="Click to connect to another stage"
+          />
+        )}
       </div>
     );
   }
@@ -101,10 +113,22 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete }) => {
             e.stopPropagation();
             onDelete(stage.id);
           }}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full hover:bg-red-600 text-xs font-bold"
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full hover:bg-red-600 text-xs font-bold z-20"
         >
           ×
         </button>
+      )}
+
+      {/* Connection handles - right side for outgoing */}
+      {onStartConnect && (
+        <button
+          className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full border-2 border-white hover:bg-blue-600 hover:scale-125 transition-transform z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onStartConnect(stage.id);
+          }}
+          title="Click to connect to another stage"
+        />
       )}
     </div>
   );
