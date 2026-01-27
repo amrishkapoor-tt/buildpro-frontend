@@ -106,14 +106,22 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
   };
 
   const handleStartConnect = (stageId) => {
+    console.log('Starting connection from stage:', stageId);
     setConnecting(stageId);
+    setSelectedStage(null); // Deselect any selected stage
   };
 
   const handleEndConnect = (toStageId) => {
-    if (!connecting) return;
+    console.log('Ending connection at stage:', toStageId, 'from:', connecting);
+
+    if (!connecting) {
+      console.log('No connection in progress');
+      return;
+    }
 
     // Can't connect to self
     if (connecting === toStageId) {
+      console.log('Cannot connect stage to itself');
       setConnecting(null);
       return;
     }
@@ -129,7 +137,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
       return;
     }
 
-    // Create the transition and open editor
+    // Create the transition
     const newTransition = {
       id: generateId(),
       from_stage_id: connecting,
@@ -139,9 +147,22 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
       is_automatic: false
     };
 
-    setTransitions([...transitions, newTransition]);
-    setEditingTransition(newTransition);
+    console.log('Creating new transition:', newTransition);
+    console.log('Current transitions before:', transitions);
+
+    // Update transitions immediately
+    const updatedTransitions = [...transitions, newTransition];
+    setTransitions(updatedTransitions);
+
+    console.log('Updated transitions:', updatedTransitions);
+
+    // Clear connecting state
     setConnecting(null);
+
+    // Open editor after a brief delay to ensure state is updated
+    setTimeout(() => {
+      setEditingTransition(newTransition);
+    }, 100);
   };
 
   const handleConnectStages = (fromStageId, toStageId) => {
@@ -159,13 +180,24 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
   };
 
   const handleUpdateTransition = (transitionId, updates) => {
-    setTransitions(transitions.map(t =>
-      t.id === transitionId ? { ...t, ...updates } : t
-    ));
+    console.log('Updating transition:', transitionId, updates);
+    setTransitions(prevTransitions =>
+      prevTransitions.map(t =>
+        t.id === transitionId ? { ...t, ...updates } : t
+      )
+    );
   };
 
   const handleDeleteTransition = (transitionId) => {
-    setTransitions(transitions.filter(t => t.id !== transitionId));
+    console.log('Deleting transition:', transitionId);
+    setTransitions(prevTransitions =>
+      prevTransitions.filter(t => t.id !== transitionId)
+    );
+    setEditingTransition(null);
+  };
+
+  const handleCloseEditor = () => {
+    console.log('Closing editor. Current transitions:', transitions);
     setEditingTransition(null);
   };
 
@@ -356,11 +388,15 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           )}
 
           {/* Transitions List */}
-          {transitions.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                Transitions ({transitions.length})
-              </h3>
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              Transitions ({transitions.length})
+            </h3>
+            {transitions.length === 0 ? (
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 text-center">
+                No transitions yet. Click the blue dot on a stage to start connecting.
+              </div>
+            ) : (
               <div className="space-y-2">
                 {transitions.map(t => {
                   const from = stages.find(s => s.id === t.from_stage_id);
@@ -384,8 +420,17 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Debug Info */}
+          <div className="mt-6 p-3 bg-gray-800 text-white rounded text-xs font-mono">
+            <div className="font-bold mb-1">Debug Info:</div>
+            <div>Stages: {stages.length}</div>
+            <div>Transitions: {transitions.length}</div>
+            <div>Connecting: {connecting || 'none'}</div>
+            <div>Selected: {selectedStage?.name || 'none'}</div>
+          </div>
         </div>
 
         {/* Canvas */}
@@ -412,33 +457,23 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               <defs>
                 <marker
                   id="arrowhead"
-                  markerWidth="12"
-                  markerHeight="10"
-                  refX="11"
-                  refY="5"
+                  markerWidth="15"
+                  markerHeight="12"
+                  refX="14"
+                  refY="6"
                   orient="auto"
                 >
-                  <polygon points="0 0, 12 5, 0 10" fill="#2563eb" />
-                </marker>
-                <marker
-                  id="arrowhead-hover"
-                  markerWidth="12"
-                  markerHeight="10"
-                  refX="11"
-                  refY="5"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 12 5, 0 10" fill="#1d4ed8" />
+                  <polygon points="0 0, 15 6, 0 12" fill="#dc2626" />
                 </marker>
                 <marker
                   id="arrowhead-connecting"
-                  markerWidth="12"
-                  markerHeight="10"
-                  refX="11"
-                  refY="5"
+                  markerWidth="15"
+                  markerHeight="12"
+                  refX="14"
+                  refY="6"
                   orient="auto"
                 >
-                  <polygon points="0 0, 12 5, 0 10" fill="#9ca3af" />
+                  <polygon points="0 0, 15 6, 0 12" fill="#9ca3af" />
                 </marker>
                 <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
                   <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
@@ -473,85 +508,86 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               )}
 
               {/* Existing transitions */}
-              {transitions.map(t => {
+              {transitions.map((t, index) => {
+                console.log(`Rendering transition ${index}:`, t);
                 const from = stages.find(s => s.id === t.from_stage_id);
                 const to = stages.find(s => s.id === t.to_stage_id);
-                if (!from || !to) return null;
 
-                const fromX = from.x + (from.type === 'start' || from.type === 'end' ? 50 : 90);
+                if (!from) {
+                  console.warn(`From stage not found for transition:`, t.from_stage_id);
+                  return null;
+                }
+                if (!to) {
+                  console.warn(`To stage not found for transition:`, t.to_stage_id);
+                  return null;
+                }
+
+                const fromX = from.x + (from.type === 'start' || from.type === 'end' ? 100 : 180);
                 const fromY = from.y + (from.type === 'start' || from.type === 'end' ? 20 : 40);
-                const toX = to.x + (to.type === 'start' || to.type === 'end' ? 50 : 90);
+                const toX = to.x + (to.type === 'start' || to.type === 'end' ? 0 : 0);
                 const toY = to.y + (to.type === 'start' || to.type === 'end' ? 20 : 40);
 
                 const midX = (fromX + toX) / 2;
                 const midY = (fromY + toY) / 2;
 
+                console.log(`Drawing transition from (${fromX}, ${fromY}) to (${toX}, ${toY})`);
+
                 return (
                   <g
                     key={t.id}
-                    className="transition-group cursor-pointer hover:opacity-90"
-                    style={{ pointerEvents: 'auto' }}
-                    onClick={() => setEditingTransition(t)}
+                    className="transition-group cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Clicked transition:', t);
+                      setEditingTransition(t);
+                    }}
                   >
                     {/* Invisible wider path for easier clicking */}
                     <path
                       d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
                       stroke="transparent"
-                      strokeWidth="20"
+                      strokeWidth="30"
                       fill="none"
-                      className="cursor-pointer"
+                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                     />
 
-                    {/* Visible arrow path */}
+                    {/* Visible arrow path - ALWAYS VISIBLE */}
                     <path
                       d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
-                      stroke="#2563eb"
-                      strokeWidth="3"
+                      stroke="#dc2626"
+                      strokeWidth="4"
                       fill="none"
                       markerEnd="url(#arrowhead)"
-                      className="pointer-events-none"
+                      style={{ pointerEvents: 'none' }}
                     />
 
                     {/* Label background */}
                     <rect
-                      x={midX - 60}
-                      y={midY - 14}
-                      width="120"
-                      height="24"
-                      rx="4"
-                      fill="white"
-                      stroke="#2563eb"
-                      strokeWidth="1.5"
+                      x={midX - 70}
+                      y={midY - 18}
+                      width="140"
+                      height="32"
+                      rx="6"
+                      fill="#fef2f2"
+                      stroke="#dc2626"
+                      strokeWidth="2"
                       filter="url(#drop-shadow)"
+                      style={{ pointerEvents: 'auto' }}
                     />
 
                     {/* Label text */}
                     <text
                       x={midX}
-                      y={midY + 4}
+                      y={midY + 5}
                       textAnchor="middle"
-                      className="text-sm font-semibold fill-blue-700 pointer-events-none select-none"
-                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                      className="font-bold pointer-events-none select-none"
+                      style={{
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        fontSize: '14px',
+                        fill: '#991b1b'
+                      }}
                     >
                       {t.transition_name}
-                    </text>
-
-                    {/* Edit icon indicator */}
-                    <circle
-                      cx={midX + 50}
-                      cy={midY}
-                      r="8"
-                      fill="#2563eb"
-                      className="pointer-events-none"
-                    />
-                    <text
-                      x={midX + 50}
-                      y={midY + 4}
-                      textAnchor="middle"
-                      className="text-xs font-bold fill-white pointer-events-none"
-                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
-                    >
-                      ✎
                     </text>
                   </g>
                 );
@@ -607,7 +643,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-semibold text-gray-900">Edit Transition</h3>
               <button
-                onClick={() => setEditingTransition(null)}
+                onClick={handleCloseEditor}
                 className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
                 ×
@@ -701,7 +737,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
 
             <div className="flex gap-3 mt-8">
               <button
-                onClick={() => setEditingTransition(null)}
+                onClick={handleCloseEditor}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-base"
               >
                 Save Changes
