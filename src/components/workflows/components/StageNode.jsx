@@ -87,7 +87,7 @@ const StageNode = ({ stage, selected, onSelect, onMove, onDelete, onStartConnect
         const newY = e.clientY - rect.top - 40;
         onMove(stage.id, newX, newY);
       }}
-      onClick={() => onSelect(stage)}
+      onClick={(e) => onSelect(stage, e)}
     >
       {/* Header */}
       <div className={`flex items-center gap-2 mb-2 p-2 rounded ${getStageColor(stage.type)}`}>
