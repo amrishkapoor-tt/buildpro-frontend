@@ -354,6 +354,38 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               </button>
             </div>
           )}
+
+          {/* Transitions List */}
+          {transitions.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                Transitions ({transitions.length})
+              </h3>
+              <div className="space-y-2">
+                {transitions.map(t => {
+                  const from = stages.find(s => s.id === t.from_stage_id);
+                  const to = stages.find(s => s.id === t.to_stage_id);
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setEditingTransition(t)}
+                      className="p-2 bg-white border border-gray-200 rounded cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="text-xs font-semibold text-blue-700 mb-1">
+                        {t.transition_name}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {from?.name || 'Unknown'} → {to?.name || 'Unknown'}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Action: {t.transition_action}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Canvas */}
@@ -380,24 +412,44 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               <defs>
                 <marker
                   id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="7"
-                  refX="9"
-                  refY="3.5"
+                  markerWidth="12"
+                  markerHeight="10"
+                  refX="11"
+                  refY="5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                  <polygon points="0 0, 12 5, 0 10" fill="#2563eb" />
+                </marker>
+                <marker
+                  id="arrowhead-hover"
+                  markerWidth="12"
+                  markerHeight="10"
+                  refX="11"
+                  refY="5"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 12 5, 0 10" fill="#1d4ed8" />
                 </marker>
                 <marker
                   id="arrowhead-connecting"
-                  markerWidth="10"
-                  markerHeight="7"
-                  refX="9"
-                  refY="3.5"
+                  markerWidth="12"
+                  markerHeight="10"
+                  refX="11"
+                  refY="5"
                   orient="auto"
                 >
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#9ca3af" />
+                  <polygon points="0 0, 12 5, 0 10" fill="#9ca3af" />
                 </marker>
+                <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+                  <feOffset dx="0" dy="1" result="offsetblur"/>
+                  <feFlood floodColor="#000000" floodOpacity="0.2"/>
+                  <feComposite in2="offsetblur" operator="in"/>
+                  <feMerge>
+                    <feMergeNode/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
               </defs>
 
               {/* Connection in progress */}
@@ -412,8 +464,8 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                       return `${fromX} ${fromY} L ${mousePos.x} ${mousePos.y}`;
                     })()}`}
                     stroke="#9ca3af"
-                    strokeWidth="2"
-                    strokeDasharray="5,5"
+                    strokeWidth="3"
+                    strokeDasharray="8,4"
                     fill="none"
                     markerEnd="url(#arrowhead-connecting)"
                   />
@@ -435,22 +487,71 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                 const midY = (fromY + toY) / 2;
 
                 return (
-                  <g key={t.id} className="cursor-pointer" style={{ pointerEvents: 'auto' }}>
+                  <g
+                    key={t.id}
+                    className="transition-group cursor-pointer hover:opacity-90"
+                    style={{ pointerEvents: 'auto' }}
+                    onClick={() => setEditingTransition(t)}
+                  >
+                    {/* Invisible wider path for easier clicking */}
                     <path
                       d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
-                      stroke="#3b82f6"
-                      strokeWidth="2"
+                      stroke="transparent"
+                      strokeWidth="20"
+                      fill="none"
+                      className="cursor-pointer"
+                    />
+
+                    {/* Visible arrow path */}
+                    <path
+                      d={`M ${fromX} ${fromY} L ${toX} ${toY}`}
+                      stroke="#2563eb"
+                      strokeWidth="3"
                       fill="none"
                       markerEnd="url(#arrowhead)"
+                      className="pointer-events-none"
                     />
+
+                    {/* Label background */}
+                    <rect
+                      x={midX - 60}
+                      y={midY - 14}
+                      width="120"
+                      height="24"
+                      rx="4"
+                      fill="white"
+                      stroke="#2563eb"
+                      strokeWidth="1.5"
+                      filter="url(#drop-shadow)"
+                    />
+
+                    {/* Label text */}
                     <text
                       x={midX}
-                      y={midY - 5}
+                      y={midY + 4}
                       textAnchor="middle"
-                      className="text-xs fill-blue-700 font-medium cursor-pointer"
-                      onClick={() => setEditingTransition(t)}
+                      className="text-sm font-semibold fill-blue-700 pointer-events-none select-none"
+                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                     >
                       {t.transition_name}
+                    </text>
+
+                    {/* Edit icon indicator */}
+                    <circle
+                      cx={midX + 50}
+                      cy={midY}
+                      r="8"
+                      fill="#2563eb"
+                      className="pointer-events-none"
+                    />
+                    <text
+                      x={midX + 50}
+                      y={midY + 4}
+                      textAnchor="middle"
+                      className="text-xs font-bold fill-white pointer-events-none"
+                      style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                    >
+                      ✎
                     </text>
                   </g>
                 );
@@ -501,14 +602,35 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
 
       {/* Transition Editor Modal */}
       {editingTransition && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Transition</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">Edit Transition</h3>
+              <button
+                onClick={() => setEditingTransition(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Visual flow indicator */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-center gap-3 text-sm">
+                  <div className="px-3 py-2 bg-white border border-blue-300 rounded font-medium text-gray-900">
+                    {stages.find(s => s.id === editingTransition.from_stage_id)?.name || 'Unknown'}
+                  </div>
+                  <div className="text-blue-600 font-bold text-lg">→</div>
+                  <div className="px-3 py-2 bg-white border border-blue-300 rounded font-medium text-gray-900">
+                    {stages.find(s => s.id === editingTransition.to_stage_id)?.name || 'Unknown'}
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Transition Name
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Transition Label (shown on arrow)
                 </label>
                 <input
                   type="text"
@@ -518,13 +640,14 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                     setEditingTransition(updated);
                     handleUpdateTransition(editingTransition.id, { transition_name: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
                   placeholder="e.g., Approve, Reject, Request Changes"
                 />
+                <p className="text-xs text-gray-500 mt-1">This text will appear on the workflow diagram</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Action Type
                 </label>
                 <select
@@ -534,57 +657,62 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                     setEditingTransition(updated);
                     handleUpdateTransition(editingTransition.id, { transition_action: e.target.value });
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
                 >
-                  <option value="approve">Approve</option>
-                  <option value="reject">Reject</option>
-                  <option value="revise">Request Changes</option>
-                  <option value="forward">Forward</option>
-                  <option value="return">Return</option>
+                  <option value="approve">✓ Approve - Move forward positively</option>
+                  <option value="reject">✗ Reject - Deny and stop workflow</option>
+                  <option value="revise">↻ Request Changes - Send back for revisions</option>
+                  <option value="forward">→ Forward - Pass to next stage</option>
+                  <option value="return">← Return - Go back to previous stage</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {editingTransition.transition_action === 'approve' && 'User approves and workflow moves forward'}
+                  {editingTransition.transition_action === 'reject' && 'User rejects and workflow stops'}
+                  {editingTransition.transition_action === 'revise' && 'User requests changes, workflow goes back'}
+                  {editingTransition.transition_action === 'forward' && 'Workflow continues to next stage'}
+                  {editingTransition.transition_action === 'return' && 'Workflow returns to previous stage'}
+                </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="auto-transition"
-                  checked={editingTransition.is_automatic}
-                  onChange={(e) => {
-                    const updated = { ...editingTransition, is_automatic: e.target.checked };
-                    setEditingTransition(updated);
-                    handleUpdateTransition(editingTransition.id, { is_automatic: e.target.checked });
-                  }}
-                  className="rounded"
-                />
-                <label htmlFor="auto-transition" className="text-sm text-gray-700">
-                  Automatic transition (no user action required)
-                </label>
-              </div>
-
-              <div className="pt-2 text-xs text-gray-500">
-                <p className="mb-1">
-                  <strong>From:</strong> {stages.find(s => s.id === editingTransition.from_stage_id)?.name || 'Unknown'}
-                </p>
-                <p>
-                  <strong>To:</strong> {stages.find(s => s.id === editingTransition.to_stage_id)?.name || 'Unknown'}
-                </p>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="auto-transition"
+                    checked={editingTransition.is_automatic}
+                    onChange={(e) => {
+                      const updated = { ...editingTransition, is_automatic: e.target.checked };
+                      setEditingTransition(updated);
+                      handleUpdateTransition(editingTransition.id, { is_automatic: e.target.checked });
+                    }}
+                    className="mt-1 rounded"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="auto-transition" className="text-sm font-medium text-gray-900 cursor-pointer">
+                      Automatic Transition
+                    </label>
+                    <p className="text-xs text-gray-600 mt-1">
+                      When enabled, this transition happens automatically without requiring user action
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setEditingTransition(null)}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-base"
               >
-                Done
+                Save Changes
               </button>
               <button
                 onClick={() => {
-                  if (window.confirm('Delete this transition?')) {
+                  if (window.confirm('Delete this transition? This cannot be undone.')) {
                     handleDeleteTransition(editingTransition.id);
                   }
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-base"
               >
                 Delete
               </button>
