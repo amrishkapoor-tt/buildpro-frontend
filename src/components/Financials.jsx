@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, X, TrendingUp, TrendingDown, FileText, CheckCircle, ChevronRight } from 'lucide-react';
+import { DollarSign, Plus, X, TrendingUp, TrendingDown, FileText, CheckCircle, ChevronRight, Activity, Play } from 'lucide-react';
+import WorkflowStatusWidget from './workflows/WorkflowStatusWidget';
 import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -379,7 +380,7 @@ const Financials = ({ projectId, token }) => {
                   <h4 className="font-medium text-gray-900 mb-3">Change Orders</h4>
                   <div className="space-y-3">
                     {changeOrders.map(co => (
-                      <div key={co.id} className="bg-white rounded-lg border-2 border-blue-200 p-4">
+                      <div key={co.id} className="bg-white rounded-lg border-2 border-blue-200 p-4 space-y-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
@@ -391,6 +392,12 @@ const Financials = ({ projectId, token }) => {
                               }`}>
                                 {co.status}
                               </span>
+                              {co.workflow_status === 'active' && (
+                                <span className="flex items-center gap-1 text-xs text-blue-600">
+                                  <Activity className="w-3 h-3" />
+                                  {co.workflow_stage_name || 'In Workflow'}
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-gray-900 mb-3">{co.title}</p>
                             <div className="flex items-center gap-6">
@@ -404,15 +411,54 @@ const Financials = ({ projectId, token }) => {
                               </div>
                             </div>
                           </div>
-                          {co.status === 'pending' && can('approve_change_order') && (
-                            <button
-                              onClick={() => approveChangeOrder(co.id)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                            >
-                              Approve
-                            </button>
-                          )}
+                          <div className="flex flex-col gap-2">
+                            {co.status === 'pending' && !co.workflow_id && can('start_workflow') && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await apiCall('/workflows/start', {
+                                      method: 'POST',
+                                      body: JSON.stringify({
+                                        entity_type: 'change_order',
+                                        entity_id: co.id,
+                                        project_id: projectId
+                                      })
+                                    });
+                                    alert('Workflow started successfully!');
+                                    loadFinancials();
+                                  } catch (error) {
+                                    alert('Failed to start workflow: ' + error.message);
+                                  }
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                              >
+                                <Play className="w-4 h-4" />
+                                Start Approval
+                              </button>
+                            )}
+                            {co.status === 'pending' && can('approve_change_order') && !co.workflow_id && (
+                              <button
+                                onClick={() => approveChangeOrder(co.id)}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                              >
+                                Approve
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Workflow Status Widget */}
+                        {co.workflow_id && (
+                          <div className="border-t border-gray-200 pt-4">
+                            <WorkflowStatusWidget
+                              entityType="change_order"
+                              entityId={co.id}
+                              projectId={projectId}
+                              token={token}
+                              onTransition={() => loadFinancials()}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

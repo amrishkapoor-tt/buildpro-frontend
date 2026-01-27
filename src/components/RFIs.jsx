@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, X, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { FileText, Plus, X, Send, CheckCircle, Clock, AlertCircle, Activity, Play } from 'lucide-react';
 import LinkedDocuments from './LinkedDocuments';
+import WorkflowStatusWidget from './workflows/WorkflowStatusWidget';
 import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -142,6 +143,12 @@ const RFIs = ({ projectId, token }) => {
                           }`}>
                             {rfi.status}
                           </span>
+                          {rfi.workflow_status === 'active' && (
+                            <span className="flex items-center gap-1 text-xs text-blue-600">
+                              <Activity className="w-3 h-3" />
+                              {rfi.workflow_stage_name || 'In Workflow'}
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-gray-600 mt-1">{rfi.title}</p>
                       </div>
@@ -245,6 +252,20 @@ const RFIs = ({ projectId, token }) => {
                 <p className="text-gray-700">{selectedRFI.question}</p>
               </div>
 
+              {/* Workflow Status */}
+              <div className="border-t border-b border-gray-200 py-4">
+                <WorkflowStatusWidget
+                  entityType="rfi"
+                  entityId={selectedRFI.id}
+                  projectId={projectId}
+                  token={token}
+                  onTransition={() => {
+                    loadRFIs();
+                    loadRFIDetail(selectedRFI.id);
+                  }}
+                />
+              </div>
+
               <div className="flex gap-2">
                 {selectedRFI.status === 'draft' && can('change_rfi_status') && (
                   <button
@@ -254,6 +275,33 @@ const RFIs = ({ projectId, token }) => {
                     Open RFI
                   </button>
                 )}
+
+                {selectedRFI.status === 'open' && !selectedRFI.workflow_id && can('start_workflow') && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await apiCall('/workflows/start', {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            entity_type: 'rfi',
+                            entity_id: selectedRFI.id,
+                            project_id: projectId
+                          })
+                        });
+                        alert('Workflow started successfully!');
+                        loadRFIs();
+                        loadRFIDetail(selectedRFI.id);
+                      } catch (error) {
+                        alert('Failed to start workflow: ' + error.message);
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start Approval Workflow
+                  </button>
+                )}
+
                 {selectedRFI.status === 'answered' && can('change_rfi_status') && (
                   <button
                     onClick={() => handleStatusChange(selectedRFI.id, 'closed')}

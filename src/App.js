@@ -13,7 +13,7 @@ import PunchList from './components/PunchList';
 import Financials from './components/Financials';
 import Schedule from './components/Schedule';
 import Dashboard from './components/Dashboard';
-import WorkflowTasks from './components/workflows/WorkflowTasks';
+import WorkflowsPage from './components/workflows/WorkflowsPage';
 import { PermissionProvider } from './contexts/PermissionContext';
 
 // IMPORTANT: Update this to your Render backend URL
@@ -27,6 +27,7 @@ const FreeCoreProduction = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [workflowTaskCount, setWorkflowTaskCount] = useState(0);
   
   const [showLogin, setShowLogin] = useState(!token);
   const [showRegister, setShowRegister] = useState(false);
@@ -53,6 +54,34 @@ const FreeCoreProduction = () => {
       loadProjects();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (token && selectedProject) {
+      loadWorkflowTaskCount();
+    }
+  }, [token, selectedProject]);
+
+  const loadWorkflowTaskCount = async () => {
+    try {
+      const response = await fetch(`${API_URL}/workflows/tasks/my-tasks?project_id=${selectedProject.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Count only overdue and due soon tasks
+        const now = new Date();
+        const urgentCount = (data.tasks || []).filter(task => {
+          if (!task.current_stage_due_date) return false;
+          const due = new Date(task.current_stage_due_date);
+          const hoursUntilDue = (due - now) / (1000 * 60 * 60);
+          return hoursUntilDue < 24; // Overdue or due within 24 hours
+        }).length;
+        setWorkflowTaskCount(urgentCount);
+      }
+    } catch (error) {
+      console.error('Failed to load workflow task count:', error);
+    }
+  };
 
   const apiCall = async (endpoint, options = {}) => {
     try {
@@ -353,21 +382,28 @@ const FreeCoreProduction = () => {
               { id: 'photos', icon: Camera, label: 'Photos' },
               { id: 'rfis', icon: FileText, label: 'RFIs' },
               { id: 'submittals', icon: Send, label: 'Submittals' },
-              { id: 'workflows', icon: Activity, label: 'Workflows' },
+              { id: 'workflows', icon: Activity, label: 'Workflows', badge: workflowTaskCount },
               { id: 'dailylogs', icon: Calendar, label: 'Daily Logs' },
               { id: 'punch', icon: Wrench, label: 'Punch List' },
               { id: 'financials', icon: DollarSign, label: 'Financials' },
               { id: 'team', icon: Users, label: 'Team' }
-            ].map(({ id, icon: Icon, label }) => (
+            ].map(({ id, icon: Icon, label, badge }) => (
               <button
                 key={id}
                 onClick={() => setCurrentView(id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
                   currentView === id ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{label}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{label}</span>
+                </div>
+                {badge > 0 && (
+                  <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {badge}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -443,7 +479,7 @@ const FreeCoreProduction = () => {
                   {currentView === 'drawings' && <Drawings projectId={selectedProject.id} token={token} />}
                   {currentView === 'photos' && <Photos projectId={selectedProject.id} token={token} />}
                   {currentView === 'submittals' && <Submittals projectId={selectedProject.id} token={token} />}
-                  {currentView === 'workflows' && <WorkflowTasks projectId={selectedProject.id} token={token} />}
+                  {currentView === 'workflows' && <WorkflowsPage projectId={selectedProject.id} token={token} />}
                   {currentView === 'dailylogs' && <DailyLogs projectId={selectedProject.id} token={token} />}
                   {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
                   {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}

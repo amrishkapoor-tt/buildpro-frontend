@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Clock, User, AlertCircle, CheckCircle, History } from 'lucide-react';
+import WorkflowHistoryModal from './WorkflowHistoryModal';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -221,6 +222,16 @@ const WorkflowStatusWidget = ({ entityType, entityId, projectId, token, onTransi
           </div>
         )}
       </div>
+
+      {/* History Modal */}
+      {showHistory && workflow && (
+        <WorkflowHistoryModal
+          workflowId={workflow.id}
+          entityName={`${entityType}: ${entityId}`}
+          token={token}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 };
