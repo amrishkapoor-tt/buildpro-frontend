@@ -66,7 +66,7 @@ const WorkflowTemplates = ({ projectId, token }) => {
       return;
     }
 
-    if (!confirm(`Duplicate template "${template.name}"?`)) return;
+    if (!window.confirm(`Duplicate template "${template.name}"?`)) return;
 
     try {
       const newTemplate = {
@@ -103,7 +103,7 @@ const WorkflowTemplates = ({ projectId, token }) => {
       return;
     }
 
-    if (!confirm(`Delete template "${template.name}"? This action cannot be undone.`)) return;
+    if (!window.confirm(`Delete template "${template.name}"? This action cannot be undone.`)) return;
 
     try {
       const response = await fetch(`${API_URL}/workflows/templates/${template.id}`, {
