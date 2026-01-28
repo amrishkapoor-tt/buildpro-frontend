@@ -452,6 +452,31 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
               }}
             />
 
+            {/* Render stages - lower z-index so arrows appear on top */}
+            <div className="relative" style={{ zIndex: 1 }}>
+              {stages.map(stage => (
+                <StageNode
+                  key={stage.id}
+                  stage={stage}
+                  selected={selectedStage?.id === stage.id}
+                  connecting={connecting}
+                  onSelect={(s, event) => {
+                    console.log('Stage onClick fired:', s.id, 'connecting:', connecting);
+                    // If we're in connecting mode, complete the connection
+                    if (connecting && connecting !== s.id) {
+                      console.log('Completing connection from', connecting, 'to', s.id);
+                      handleEndConnect(s.id);
+                    } else if (!connecting) {
+                      setSelectedStage(s);
+                    }
+                  }}
+                  onMove={handleStageMove}
+                  onDelete={stage.type !== 'start' && stage.type !== 'end' ? handleStageDelete : null}
+                  onStartConnect={handleStartConnect}
+                />
+              ))}
+            </div>
+
             {/* Render transitions (arrows) */}
             <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 100 }}>
               <defs>
@@ -593,31 +618,6 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
                 );
               })}
             </svg>
-
-            {/* Render stages - lower z-index so arrows appear on top */}
-            <div className="relative" style={{ zIndex: 1 }}>
-              {stages.map(stage => (
-                <StageNode
-                  key={stage.id}
-                  stage={stage}
-                  selected={selectedStage?.id === stage.id}
-                  connecting={connecting}
-                  onSelect={(s, event) => {
-                    console.log('Stage onClick fired:', s.id, 'connecting:', connecting);
-                    // If we're in connecting mode, complete the connection
-                    if (connecting && connecting !== s.id) {
-                      console.log('Completing connection from', connecting, 'to', s.id);
-                      handleEndConnect(s.id);
-                    } else if (!connecting) {
-                      setSelectedStage(s);
-                    }
-                  }}
-                  onMove={handleStageMove}
-                  onDelete={stage.type !== 'start' && stage.type !== 'end' ? handleStageDelete : null}
-                  onStartConnect={handleStartConnect}
-                />
-              ))}
-            </div>
 
             {/* Helper text */}
             {stages.length === 2 && (
