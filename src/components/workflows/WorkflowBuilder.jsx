@@ -79,8 +79,17 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
       // Note: loadedStages[0] = 'start', loadedStages[1..n] = real stages, loadedStages[n+1] = 'end'
       const loadedTransitions = template.transitions.map(t => {
         // from_stage_number and to_stage_number are 1-indexed for real stages
-        const fromStageId = loadedStages[t.from_stage_number]?.id; // Real stage at position
-        const toStageId = loadedStages[t.to_stage_number]?.id; // Real stage at position
+        // loadedStages: [start(0), stage1(1), stage2(2), ..., end(n+1)]
+        const fromStageId = loadedStages[t.from_stage_number]?.id;
+        const toStageId = loadedStages[t.to_stage_number]?.id;
+
+        console.log('Loading transition:', {
+          from_stage_number: t.from_stage_number,
+          to_stage_number: t.to_stage_number,
+          fromStageId,
+          toStageId,
+          transition_name: t.transition_name
+        });
 
         return {
           id: generateId(),
@@ -91,6 +100,9 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           is_automatic: t.is_automatic
         };
       });
+
+      console.log('Loaded stages:', loadedStages.map(s => ({ id: s.id, type: s.type, name: s.name })));
+      console.log('Loaded transitions:', loadedTransitions);
 
       setTransitions(loadedTransitions);
 

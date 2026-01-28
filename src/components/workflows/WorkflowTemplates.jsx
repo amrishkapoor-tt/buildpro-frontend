@@ -148,9 +148,23 @@ const WorkflowTemplates = ({ projectId, token }) => {
     }
   };
 
-  const handlePreview = (template) => {
-    setPreviewTemplate(template);
-    setShowPreview(true);
+  const handlePreview = async (template) => {
+    try {
+      // Fetch full template details with stages and transitions
+      const response = await fetch(`${API_URL}/workflows/templates/${template.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPreviewTemplate(data.template);
+        setShowPreview(true);
+      } else {
+        alert('Failed to load template details');
+      }
+    } catch (error) {
+      alert('Failed to load template: ' + error.message);
+    }
   };
 
   const handleSaveBuilder = (template) => {
@@ -289,9 +303,9 @@ const WorkflowTemplates = ({ projectId, token }) => {
                         )}
 
                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                          <span>{template.stages?.length || 0} stages</span>
+                          <span>{template.stage_count || 0} stages</span>
                           <span>•</span>
-                          <span>{template.transitions?.length || 0} transitions</span>
+                          <span>{template.transition_count || 0} transitions</span>
                           {template.created_at && (
                             <>
                               <span>•</span>
