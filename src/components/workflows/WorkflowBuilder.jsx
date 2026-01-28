@@ -251,24 +251,47 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           assignment_rules: s.assignment_rules || { type: 'role', role: '' },
           actions: s.actions || ['approve', 'reject']
         })),
-        transitions: transitions.map(t => {
-          const fromStage = stages.find(s => s.id === t.from_stage_id);
-          const toStage = stages.find(s => s.id === t.to_stage_id);
+        transitions: transitions
+          .map(t => {
+            const fromStage = stages.find(s => s.id === t.from_stage_id);
+            const toStage = stages.find(s => s.id === t.to_stage_id);
 
-          // Calculate stage numbers (excluding start/end)
-          const fromStageNumber = fromStage?.type === 'start' ? 1 :
-            workflowStages.findIndex(s => s.id === t.from_stage_id) + 1;
-          const toStageNumber = toStage?.type === 'end' ? workflowStages.length + 1 :
-            workflowStages.findIndex(s => s.id === t.to_stage_id) + 1;
+            if (!fromStage || !toStage) {
+              console.warn('Stage not found for transition:', t);
+              return null;
+            }
 
-          return {
-            from_stage_number: fromStageNumber,
-            to_stage_number: toStageNumber,
-            transition_action: t.transition_action,
-            transition_name: t.transition_name,
-            is_automatic: t.is_automatic || false
-          };
-        })
+            // Calculate stage numbers
+            let fromStageNumber, toStageNumber;
+
+            if (fromStage.type === 'start') {
+              fromStageNumber = 1;
+            } else {
+              const idx = workflowStages.findIndex(s => s.id === t.from_stage_id);
+              fromStageNumber = idx >= 0 ? idx + 1 : null;
+            }
+
+            if (toStage.type === 'end') {
+              toStageNumber = workflowStages.length + 1;
+            } else {
+              const idx = workflowStages.findIndex(s => s.id === t.to_stage_id);
+              toStageNumber = idx >= 0 ? idx + 1 : null;
+            }
+
+            if (!fromStageNumber || !toStageNumber) {
+              console.warn('Could not map stage numbers for transition:', t);
+              return null;
+            }
+
+            return {
+              from_stage_number: fromStageNumber,
+              to_stage_number: toStageNumber,
+              transition_action: t.transition_action,
+              transition_name: t.transition_name,
+              is_automatic: t.is_automatic || false
+            };
+          })
+          .filter(t => t !== null)
       };
 
       console.log('Saving template:', JSON.stringify(template, null, 2));
