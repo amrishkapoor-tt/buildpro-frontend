@@ -478,7 +478,13 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             </div>
 
             {/* Render transitions (arrows) */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 100 }}>
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              style={{ zIndex: 100, width: '100%', height: '100%' }}
+              width="100%"
+              height="100%"
+              preserveAspectRatio="none"
+            >
               <defs>
                 <marker
                   id="arrowhead"
