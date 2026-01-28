@@ -118,7 +118,7 @@ export const PermissionProvider = ({ children, projectId, token }) => {
       'cancel_workflow': hasPermission('superintendent'),
       'create_workflow_template': hasPermission('project_manager'),
       'edit_workflow_template': hasPermission('project_manager'),
-      'delete_workflow_template': hasPermission('admin'),
+      'delete_workflow_template': hasPermission('project_manager'),
       'view_workflow_analytics': hasPermission('superintendent')
     };
 
