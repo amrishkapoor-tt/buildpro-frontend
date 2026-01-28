@@ -159,10 +159,10 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
     // Clear connecting state
     setConnecting(null);
 
-    // Open editor after a brief delay to ensure state is updated
-    setTimeout(() => {
-      setEditingTransition(newTransition);
-    }, 100);
+    // Don't auto-open editor - user can click the arrow/label to edit
+    // setTimeout(() => {
+    //   setEditingTransition(newTransition);
+    // }, 100);
   };
 
   const handleConnectStages = (fromStageId, toStageId) => {
