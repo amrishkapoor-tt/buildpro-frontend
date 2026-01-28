@@ -38,7 +38,7 @@ const StageNode = ({ stage, selected, connecting, onSelect, onMove, onDelete, on
         className={`absolute cursor-pointer ${
           selected ? 'ring-2 ring-blue-500' : ''
         }`}
-        style={{ left: stage.x, top: stage.y, width: 100 }}
+        style={{ left: stage.x, top: stage.y, width: 100, zIndex: 1 }}
         onClick={(e) => {
           // Don't select if we're in connecting mode and clicking the button
           if (!connecting || e.target.tagName !== 'BUTTON') {
@@ -84,7 +84,7 @@ const StageNode = ({ stage, selected, connecting, onSelect, onMove, onDelete, on
       className={`absolute bg-white border-2 rounded-lg p-3 shadow-sm ${
         selected ? 'border-blue-500 shadow-lg' : 'border-gray-300'
       } ${connecting ? 'cursor-pointer' : 'cursor-move'}`}
-      style={{ left: stage.x, top: stage.y, width: 180 }}
+      style={{ left: stage.x, top: stage.y, width: 180, zIndex: 1 }}
       draggable={!connecting}
       onDragEnd={(e) => {
         if (!connecting) {

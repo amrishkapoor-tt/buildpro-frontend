@@ -159,10 +159,10 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
     // Clear connecting state
     setConnecting(null);
 
-    // Don't auto-open editor - user can click the arrow/label to edit
-    // setTimeout(() => {
-    //   setEditingTransition(newTransition);
-    // }, 100);
+    // Open editor after a brief delay to ensure state is updated
+    setTimeout(() => {
+      setEditingTransition(newTransition);
+    }, 100);
   };
 
   const handleConnectStages = (fromStageId, toStageId) => {
@@ -453,7 +453,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             />
 
             {/* Render transitions (arrows) */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 100 }}>
               <defs>
                 <marker
                   id="arrowhead"
