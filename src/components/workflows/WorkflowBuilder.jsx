@@ -437,7 +437,8 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
         <div className="flex-1 overflow-auto bg-gray-100 p-8">
           <div
             ref={canvasRef}
-            className="relative bg-white rounded-lg border-2 border-gray-300 min-h-[800px] min-w-[1200px]"
+            className="relative bg-white border-2 border-gray-300 min-h-[800px] min-w-[1200px]"
+            style={{ overflow: 'visible' }}
             onDrop={handleCanvasDrop}
             onDragOver={handleCanvasDragOver}
             onClick={handleCanvasClick}
@@ -480,10 +481,7 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
             {/* Render transitions (arrows) */}
             <svg
               className="absolute inset-0 pointer-events-none"
-              style={{ zIndex: 100, width: '100%', height: '100%' }}
-              width="100%"
-              height="100%"
-              preserveAspectRatio="none"
+              style={{ zIndex: 100, overflow: 'visible' }}
             >
               <defs>
                 <marker
