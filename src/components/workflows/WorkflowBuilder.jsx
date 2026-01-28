@@ -252,40 +252,29 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           actions: s.actions || ['approve', 'reject']
         })),
         transitions: transitions
-          .map(t => {
+          .filter(t => {
             const fromStage = stages.find(s => s.id === t.from_stage_id);
             const toStage = stages.find(s => s.id === t.to_stage_id);
 
-            if (!fromStage || !toStage) {
-              console.warn('Stage not found for transition:', t);
-              return null;
+            // Skip transitions involving start or end - they're visual only
+            if (fromStage?.type === 'start' || toStage?.type === 'end') {
+              return false;
             }
 
-            // Calculate stage numbers
-            let fromStageNumber, toStageNumber;
+            return true;
+          })
+          .map(t => {
+            const fromIdx = workflowStages.findIndex(s => s.id === t.from_stage_id);
+            const toIdx = workflowStages.findIndex(s => s.id === t.to_stage_id);
 
-            if (fromStage.type === 'start') {
-              fromStageNumber = 1;
-            } else {
-              const idx = workflowStages.findIndex(s => s.id === t.from_stage_id);
-              fromStageNumber = idx >= 0 ? idx + 1 : null;
-            }
-
-            if (toStage.type === 'end') {
-              toStageNumber = workflowStages.length + 1;
-            } else {
-              const idx = workflowStages.findIndex(s => s.id === t.to_stage_id);
-              toStageNumber = idx >= 0 ? idx + 1 : null;
-            }
-
-            if (!fromStageNumber || !toStageNumber) {
-              console.warn('Could not map stage numbers for transition:', t);
+            if (fromIdx < 0 || toIdx < 0) {
+              console.warn('Could not find stages for transition:', t);
               return null;
             }
 
             return {
-              from_stage_number: fromStageNumber,
-              to_stage_number: toStageNumber,
+              from_stage_number: fromIdx + 1,
+              to_stage_number: toIdx + 1,
               transition_action: t.transition_action,
               transition_name: t.transition_name,
               is_automatic: t.is_automatic || false
