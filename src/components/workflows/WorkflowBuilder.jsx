@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Save, X, Eye, Play } from 'lucide-react';
 import StageNode from './components/StageNode';
 import StageToolbox from './components/StageToolbox';
@@ -27,6 +27,77 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
 
   const generateId = () => {
     return `stage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  // Load existing template if templateId is provided
+  useEffect(() => {
+    if (templateId && token) {
+      loadTemplate();
+    }
+  }, [templateId, token]);
+
+  const loadTemplate = async () => {
+    try {
+      const response = await fetch(`${API_URL}/workflows/templates/${templateId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load template');
+      }
+
+      const data = await response.json();
+      const template = data.template;
+
+      // Set basic template info
+      setTemplateName(template.name);
+      setEntityType(template.entity_type);
+      setDescription(template.description || '');
+
+      // Convert stages from database format to canvas format
+      const loadedStages = [
+        { id: 'start', type: 'start', x: 100, y: 50, name: 'Start' }
+      ];
+
+      template.stages.forEach((stage, index) => {
+        loadedStages.push({
+          id: generateId(),
+          type: stage.stage_type,
+          name: stage.stage_name,
+          x: 200 + (index * 250),
+          y: 150 + (index % 2) * 150,
+          sla_hours: stage.sla_hours,
+          assignment_rules: stage.assignment_rules,
+          actions: stage.actions
+        });
+      });
+
+      loadedStages.push({ id: 'end', type: 'end', x: 700, y: 400, name: 'End' });
+      setStages(loadedStages);
+
+      // Convert transitions from database format to canvas format
+      // Note: loadedStages[0] = 'start', loadedStages[1..n] = real stages, loadedStages[n+1] = 'end'
+      const loadedTransitions = template.transitions.map(t => {
+        // from_stage_number and to_stage_number are 1-indexed for real stages
+        const fromStageId = loadedStages[t.from_stage_number]?.id; // Real stage at position
+        const toStageId = loadedStages[t.to_stage_number]?.id; // Real stage at position
+
+        return {
+          id: generateId(),
+          from_stage_id: fromStageId,
+          to_stage_id: toStageId,
+          transition_action: t.transition_action,
+          transition_name: t.transition_name,
+          is_automatic: t.is_automatic
+        };
+      });
+
+      setTransitions(loadedTransitions);
+
+    } catch (error) {
+      console.error('Error loading template:', error);
+      setError('Failed to load template: ' + error.message);
+    }
   };
 
   const handleAddStage = (stageType) => {
