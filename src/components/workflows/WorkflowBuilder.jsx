@@ -271,6 +271,8 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
         })
       };
 
+      console.log('Saving template:', JSON.stringify(template, null, 2));
+
       const response = await fetch(
         `${API_URL}/workflows/templates${templateId ? `/${templateId}` : ''}`,
         {
