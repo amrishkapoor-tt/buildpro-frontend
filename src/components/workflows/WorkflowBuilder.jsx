@@ -249,16 +249,21 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
           stage_type: s.type,
           sla_hours: s.sla_hours || 48,
           assignment_rules: s.assignment_rules || { type: 'role', role: '' },
-          actions: s.actions || ['approve', 'reject'],
-          description: s.description
+          actions: s.actions || ['approve', 'reject']
         })),
         transitions: transitions.map(t => {
           const fromStage = stages.find(s => s.id === t.from_stage_id);
           const toStage = stages.find(s => s.id === t.to_stage_id);
 
+          // Calculate stage numbers (excluding start/end)
+          const fromStageNumber = fromStage?.type === 'start' ? 1 :
+            workflowStages.findIndex(s => s.id === t.from_stage_id) + 1;
+          const toStageNumber = toStage?.type === 'end' ? workflowStages.length + 1 :
+            workflowStages.findIndex(s => s.id === t.to_stage_id) + 1;
+
           return {
-            from_stage_id: t.from_stage_id,
-            to_stage_id: t.to_stage_id,
+            from_stage_number: fromStageNumber,
+            to_stage_number: toStageNumber,
             transition_action: t.transition_action,
             transition_name: t.transition_name,
             is_automatic: t.is_automatic || false
@@ -480,8 +485,14 @@ const WorkflowBuilder = ({ templateId, projectId, token, onSave, onClose }) => {
 
             {/* Render transitions (arrows) */}
             <svg
-              className="absolute inset-0 pointer-events-none"
-              style={{ zIndex: 100, overflow: 'visible' }}
+              className="absolute inset-0"
+              style={{
+                zIndex: 100,
+                overflow: 'visible',
+                pointerEvents: 'none',
+                width: '100%',
+                height: '100%'
+              }}
             >
               <defs>
                 <marker
