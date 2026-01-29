@@ -87,7 +87,7 @@ const FreeCoreProduction = () => {
     try {
       setError(null);
       const currentToken = token || localStorage.getItem('freecore_token');
-      
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers: {
@@ -98,6 +98,13 @@ const FreeCoreProduction = () => {
       });
 
       if (!response.ok) {
+        // Handle invalid/expired token
+        if (response.status === 403 || response.status === 401) {
+          console.warn('Token invalid or expired, logging out');
+          handleLogout();
+          throw new Error('Session expired. Please log in again.');
+        }
+
         const errorData = await response.json();
         throw new Error(errorData.error || 'Request failed');
       }
