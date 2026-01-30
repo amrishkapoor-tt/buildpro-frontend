@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, X, Send, Lock, Sun, Cloud } from 'lucide-react';
-import LinkedDocuments from './LinkedDocuments';
+import { Calendar, Plus, X, Sun, Cloud } from 'lucide-react';
+import DailyLogDetail from './dailylogs/DailyLogDetail';
 import { usePermissions } from '../contexts/PermissionContext';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
@@ -82,19 +82,8 @@ const DailyLogs = ({ projectId, token }) => {
     }
   };
 
-  const handleSubmitLog = async () => {
-    if (!selectedLog) return;
-    if (!window.confirm('Submit this log? It will become read-only.')) return;
-    
-    try {
-      await apiCall(`/daily-logs/${selectedLog.id}/submit`, {
-        method: 'POST'
-      });
-      setShowLogDetail(false);
-      loadDailyLogs();
-    } catch (error) {
-      alert('Failed to submit log: ' + error.message);
-    }
+  const handleLogUpdate = () => {
+    loadDailyLogs();
   };
 
   return (
@@ -247,53 +236,13 @@ const DailyLogs = ({ projectId, token }) => {
 
       {/* Log Detail Modal */}
       {showLogDetail && selectedLog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-semibold text-gray-900">
-                {new Date(selectedLog.log_date).toLocaleDateString()}
-              </h3>
-              <div className="flex items-center gap-2">
-                {!selectedLog.is_submitted && (
-                  <button
-                    onClick={handleSubmitLog}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    <Send className="w-4 h-4" />
-                    Submit & Lock
-                  </button>
-                )}
-                <button onClick={() => setShowLogDetail(false)}>
-                  <X className="w-6 h-6 text-gray-400" />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Weather</h4>
-                <p className="text-sm text-gray-700">{selectedLog.weather?.temperature} • {selectedLog.weather?.conditions}</p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">Work Performed</h4>
-                <p className="text-sm text-gray-700">{selectedLog.work_performed}</p>
-              </div>
-              {selectedLog.delays && (
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Delays</h4>
-                  <p className="text-sm text-gray-700">{selectedLog.delays}</p>
-                </div>
-              )}
-
-              {/* Linked Documents */}
-              <LinkedDocuments
-                entityType="daily_log"
-                entityId={selectedLog.id}
-                token={token}
-                projectId={projectId}
-              />
-            </div>
-          </div>
-        </div>
+        <DailyLogDetail
+          log={selectedLog}
+          onClose={() => setShowLogDetail(false)}
+          onUpdate={handleLogUpdate}
+          token={token}
+          projectId={projectId}
+        />
       )}
     </div>
   );
