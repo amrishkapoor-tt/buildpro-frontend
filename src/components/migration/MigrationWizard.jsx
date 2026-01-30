@@ -160,7 +160,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
               {showHistory ? 'Migration History' : 'Import Data'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {showHistory ? 'View past migrations' : 'Import data from Procore, TrunkTools, ACC/BIM 360, or CSV/Excel files'}
+              {showHistory ? 'View past migrations' : 'Import data from Procore, Autodesk ACC, TrunkTools, or CSV/Excel files'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -213,33 +213,6 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                 Choose Data Source
               </h3>
 
-              {/* CSV/Excel Option */}
-              <button
-                onClick={() => handleSourceSelect('csv')}
-                className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Upload className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                      Upload CSV/Excel File
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Import data from CSV or Excel spreadsheets. Best for bulk imports of RFIs, submittals, punch items, and more.
-                    </p>
-                    <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Supports CSV and XLSX formats</li>
-                      <li>• Auto-detects headers and suggests field mappings</li>
-                      <li>• Validates data before import</li>
-                      <li>• Download templates for each entity type</li>
-                    </ul>
-                  </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
-                </div>
-              </button>
-
               {/* Procore Option */}
               <button
                 onClick={() => handleSourceSelect('procore_api')}
@@ -261,6 +234,33 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                       <li>• Select specific data types to migrate</li>
                       <li>• Preserves relationships and file attachments</li>
                       <li>• Preview data before importing</li>
+                    </ul>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
+                </div>
+              </button>
+
+              {/* ACC Option */}
+              <button
+                onClick={() => handleSourceSelect('acc')}
+                className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Database className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Connect to ACC / BIM 360
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Direct integration with Autodesk Construction Cloud. Import Issues, RFIs, Submittals, and Documents.
+                    </p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Secure OAuth 2.0 authorization</li>
+                      <li>• Compatible with ACC and BIM 360</li>
+                      <li>• Issues, RFIs, Submittals, Documents</li>
+                      <li>• Cost data and file management</li>
                     </ul>
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
@@ -294,27 +294,27 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                 </div>
               </button>
 
-              {/* ACC Option */}
+              {/* CSV/Excel Option */}
               <button
-                onClick={() => handleSourceSelect('acc')}
+                onClick={() => handleSourceSelect('csv')}
                 className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
               >
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Database className="w-6 h-6 text-orange-600" />
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Upload className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                      Connect to ACC / BIM 360
+                      Upload CSV/Excel File
                     </h4>
                     <p className="text-sm text-gray-600 mb-2">
-                      Direct integration with Autodesk Construction Cloud. Import Issues, RFIs, Submittals, and Documents.
+                      Import data from CSV or Excel spreadsheets. Best for bulk imports of RFIs, submittals, punch items, and more.
                     </p>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Secure OAuth 2.0 authorization</li>
-                      <li>• Compatible with ACC and BIM 360</li>
-                      <li>• Issues, RFIs, Submittals, Documents</li>
-                      <li>• Cost data and file management</li>
+                      <li>• Supports CSV and XLSX formats</li>
+                      <li>• Auto-detects headers and suggests field mappings</li>
+                      <li>• Validates data before import</li>
+                      <li>• Download templates for each entity type</li>
                     </ul>
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
