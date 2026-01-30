@@ -75,7 +75,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
       setSessionId(data.session.id);
       setStep(5); // Show progress
     } catch (error) {
-      alert(`Failed to start migration: ${error.message}`);
+      window.alert(`Failed to start migration: ${error.message}`);
     }
   };
 

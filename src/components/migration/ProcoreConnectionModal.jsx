@@ -52,7 +52,7 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
     }
 
     if (procoreError) {
-      alert(`Procore connection failed: ${procoreError}`);
+      window.alert(`Procore connection failed: ${procoreError}`);
       // Clean up URL
       window.history.replaceState({}, '', '/');
     }
@@ -123,7 +123,7 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
         throw new Error('Failed to initiate OAuth flow');
       }
     } catch (error) {
-      alert(`Connection failed: ${error.message}`);
+      window.alert(`Connection failed: ${error.message}`);
       setConnecting(false);
     }
   };
@@ -138,17 +138,17 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
   const handleManualConnect = async () => {
     // Validation
     if (!manualForm.access_token || !manualForm.company_id) {
-      alert('Please provide both access token and company ID');
+      window.alert('Please provide both access token and company ID');
       return;
     }
 
     if (manualForm.access_token.length < 20) {
-      alert('Access token appears to be invalid (too short). Please check your Procore API token.');
+      window.alert('Access token appears to be invalid (too short). Please check your Procore API token.');
       return;
     }
 
     if (!/^\d+$/.test(manualForm.company_id)) {
-      alert('Company ID must be a numeric value. Please check your Procore company ID.');
+      window.alert('Company ID must be a numeric value. Please check your Procore company ID.');
       return;
     }
 
@@ -169,7 +169,7 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
       }
 
       const data = await response.json();
-      alert('✅ Connection saved successfully! You can now select this connection to import data.');
+      window.alert('✅ Connection saved successfully! You can now select this connection to import data.');
       setShowManualEntry(false);
       setManualForm({ access_token: '', company_id: '', company_name: '' });
       loadConnections();
@@ -186,7 +186,7 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
         errorMessage = `Connection failed: ${error.message}`;
       }
 
-      alert(errorMessage);
+      window.alert(errorMessage);
     } finally {
       setConnecting(false);
     }

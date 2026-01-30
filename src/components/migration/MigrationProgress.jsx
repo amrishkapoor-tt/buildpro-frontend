@@ -129,7 +129,7 @@ const MigrationProgress = ({ sessionId, token, onComplete, onClose }) => {
 
       loadSession(); // Refresh status
     } catch (err) {
-      alert(`Failed to pause: ${err.message}`);
+      window.alert(`Failed to pause: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -149,14 +149,14 @@ const MigrationProgress = ({ sessionId, token, onComplete, onClose }) => {
 
       loadSession(); // Refresh status
     } catch (err) {
-      alert(`Failed to resume: ${err.message}`);
+      window.alert(`Failed to resume: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRetry = async () => {
-    if (!confirm(`Retry ${session.failed_entities} failed entities?`)) {
+    if (!window.confirm(`Retry ${session.failed_entities} failed entities?`)) {
       return;
     }
 
@@ -172,10 +172,10 @@ const MigrationProgress = ({ sessionId, token, onComplete, onClose }) => {
       }
 
       const data = await response.json();
-      alert(`Retry complete: ${data.successful} successful, ${data.still_failed} still failed`);
+      window.alert(`Retry complete: ${data.successful} successful, ${data.still_failed} still failed`);
       loadSession(); // Refresh status
     } catch (err) {
-      alert(`Failed to retry: ${err.message}`);
+      window.alert(`Failed to retry: ${err.message}`);
     } finally {
       setActionLoading(false);
     }

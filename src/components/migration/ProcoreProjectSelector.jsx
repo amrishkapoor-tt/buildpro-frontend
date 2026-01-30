@@ -65,14 +65,14 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
       );
 
       if (response.ok) {
-        alert('Token refreshed successfully!');
+        window.alert('Token refreshed successfully!');
         loadProjects();
       } else {
         const data = await response.json();
         throw new Error(data.error || 'Failed to refresh token');
       }
     } catch (err) {
-      alert(`Token refresh failed: ${err.message}\n\nYou may need to reconnect your Procore account.`);
+      window.alert(`Token refresh failed: ${err.message}\n\nYou may need to reconnect your Procore account.`);
     }
   };
 

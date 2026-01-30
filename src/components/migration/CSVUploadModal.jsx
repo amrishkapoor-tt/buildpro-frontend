@@ -42,7 +42,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
 
   const handleUpload = async () => {
     if (!file) {
-      alert('Please select a file');
+      window.alert('Please select a file');
       return;
     }
 
@@ -74,7 +74,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
       setFieldMappings(data.suggested_mappings || {});
       setStep(3);
     } catch (error) {
-      alert(`Upload failed: ${error.message}`);
+      window.alert(`Upload failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -105,7 +105,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
       setValidation(data.validation);
       setStep(4);
     } catch (error) {
-      alert(`Validation failed: ${error.message}`);
+      window.alert(`Validation failed: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      alert(`Template download failed: ${error.message}`);
+      window.alert(`Template download failed: ${error.message}`);
     }
   };
 
@@ -170,7 +170,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
       setSessionId(data.session.id);
       setStep(5); // Show progress
     } catch (error) {
-      alert(`Import failed: ${error.message}`);
+      window.alert(`Import failed: ${error.message}`);
     } finally {
       setImporting(false);
     }
