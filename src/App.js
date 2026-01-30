@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity, Upload } from 'lucide-react';
+import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity, Upload, AlertTriangle, TrendingUp } from 'lucide-react';
 
 // Import all module components
 import Documents from './components/Documents';
@@ -15,6 +15,9 @@ import Schedule from './components/Schedule';
 import Dashboard from './components/Dashboard';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
 import MigrationWizard from './components/migration/MigrationWizard';
+import SafetyViolations from './components/safety/SafetyViolations';
+import SafetyDashboard from './components/safety/SafetyDashboard';
+import Reports from './components/reports/Reports';
 import { PermissionProvider } from './contexts/PermissionContext';
 
 // IMPORTANT: Update this to your Render backend URL
@@ -393,6 +396,9 @@ const FreeCoreProduction = () => {
               { id: 'submittals', icon: Send, label: 'Submittals' },
               { id: 'workflows', icon: Activity, label: 'Workflows', badge: workflowTaskCount },
               { id: 'dailylogs', icon: Calendar, label: 'Daily Logs' },
+              { id: 'safety', icon: AlertTriangle, label: 'Safety' },
+              { id: 'safety-dashboard', icon: TrendingUp, label: 'Safety Analytics' },
+              { id: 'reports', icon: FileText, label: 'Reports' },
               { id: 'punch', icon: Wrench, label: 'Punch List' },
               { id: 'financials', icon: DollarSign, label: 'Financials' },
               { id: 'team', icon: Users, label: 'Team' }
@@ -497,6 +503,9 @@ const FreeCoreProduction = () => {
                   {currentView === 'submittals' && <Submittals projectId={selectedProject.id} token={token} />}
                   {currentView === 'workflows' && <WorkflowsPage projectId={selectedProject.id} token={token} />}
                   {currentView === 'dailylogs' && <DailyLogs projectId={selectedProject.id} token={token} />}
+                  {currentView === 'safety' && <SafetyViolations projectId={selectedProject.id} token={token} />}
+                  {currentView === 'safety-dashboard' && <SafetyDashboard projectId={selectedProject.id} token={token} />}
+                  {currentView === 'reports' && <Reports projectId={selectedProject.id} token={token} />}
                   {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
                   {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}
                   {currentView === 'schedule' && <Schedule projectId={selectedProject.id} token={token} />}
