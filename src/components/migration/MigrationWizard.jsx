@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, ArrowRight, ArrowLeft, Upload, Database, History } from 'lucide-react';
 import CSVUploadModal from './CSVUploadModal';
 import ProcoreConnectionModal from './ProcoreConnectionModal';
+import TrunkToolsConnectionModal from './TrunkToolsConnectionModal';
 import ProcoreProjectSelector from './ProcoreProjectSelector';
 import EntityTypeSelector from './EntityTypeSelector';
 import MigrationProgress from './MigrationProgress';
@@ -24,10 +25,12 @@ const API_URL = 'https://buildpro-api.onrender.com/api/v1';
  */
 const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
   const [step, setStep] = useState(1);
-  const [sourceType, setSourceType] = useState(null); // 'csv' or 'procore_api'
+  const [sourceType, setSourceType] = useState(null); // 'csv', 'procore_api', or 'trunk_tools'
   const [sessionId, setSessionId] = useState(null);
   const [procoreConnection, setProcoreConnection] = useState(null);
   const [procoreProject, setProcoreProject] = useState(null);
+  const [trunkToolsConnection, setTrunkToolsConnection] = useState(null);
+  const [trunkToolsProject, setTrunkToolsProject] = useState(null);
   const [selectedEntityTypes, setSelectedEntityTypes] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -41,8 +44,17 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
     setStep(3); // Move to project selection
   };
 
+  const handleTrunkToolsConnected = (connection) => {
+    setTrunkToolsConnection(connection);
+    setStep(3); // Move to project selection
+  };
+
   const handleProjectSelected = (project) => {
-    setProcoreProject(project);
+    if (sourceType === 'procore_api') {
+      setProcoreProject(project);
+    } else if (sourceType === 'trunk_tools') {
+      setTrunkToolsProject(project);
+    }
     setStep(4); // Move to entity type selection
   };
 
@@ -50,21 +62,41 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
     setSelectedEntityTypes(entityTypes);
 
     try {
-      // Start migration
-      const response = await fetch(`${API_URL}/migration/procore/start`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          project_id: projectId,
-          procore_connection_id: procoreConnection.id,
-          procore_project_id: procoreProject.id,
-          entity_types: entityTypes,
-          options: options
-        })
-      });
+      let response;
+
+      if (sourceType === 'procore_api') {
+        // Start Procore migration
+        response = await fetch(`${API_URL}/migration/procore/start`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            procore_connection_id: procoreConnection.id,
+            procore_project_id: procoreProject.id,
+            entity_types: entityTypes,
+            options: options
+          })
+        });
+      } else if (sourceType === 'trunk_tools') {
+        // Start TrunkTools migration
+        response = await fetch(`${API_URL}/migration/connectors/trunk_tools/start`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            connection_id: trunkToolsConnection.id,
+            source_project_id: trunkToolsProject.id,
+            entity_types: entityTypes,
+            options: options
+          })
+        });
+      }
 
       if (!response.ok) {
         const data = await response.json();
@@ -102,7 +134,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
               {showHistory ? 'Migration History' : 'Import Data'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {showHistory ? 'View past migrations' : 'Import data from Procore or CSV/Excel files'}
+              {showHistory ? 'View past migrations' : 'Import data from Procore, TrunkTools, or CSV/Excel files'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -208,6 +240,33 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
                 </div>
               </button>
+
+              {/* TrunkTools Option */}
+              <button
+                onClick={() => handleSourceSelect('trunk_tools')}
+                className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <Database className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Connect to TrunkTools
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Direct integration with TrunkTools API. Import daily logs, field reports, time tracking, and more.
+                    </p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• OAuth 2.0 secure connection</li>
+                      <li>• Daily logs with weather, manpower, equipment</li>
+                      <li>• Time tracking and productivity data</li>
+                      <li>• Safety violations and inspections</li>
+                    </ul>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
+                </div>
+              </button>
             </div>
           )}
 
@@ -228,6 +287,14 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             />
           )}
 
+          {step === 2 && sourceType === 'trunk_tools' && (
+            <TrunkToolsConnectionModal
+              token={token}
+              onClose={() => setStep(1)}
+              onConnectionSaved={handleTrunkToolsConnected}
+            />
+          )}
+
           {step === 3 && sourceType === 'procore_api' && procoreConnection && (
             <ProcoreProjectSelector
               token={token}
@@ -237,9 +304,28 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             />
           )}
 
+          {step === 3 && sourceType === 'trunk_tools' && trunkToolsConnection && (
+            <ProcoreProjectSelector
+              token={token}
+              connection={trunkToolsConnection}
+              connectorType="trunk_tools"
+              onBack={() => setStep(2)}
+              onSelectProject={handleProjectSelected}
+            />
+          )}
+
           {step === 4 && sourceType === 'procore_api' && procoreProject && (
             <EntityTypeSelector
               procoreProject={procoreProject}
+              onBack={() => setStep(3)}
+              onNext={handleEntityTypesSelected}
+            />
+          )}
+
+          {step === 4 && sourceType === 'trunk_tools' && trunkToolsProject && (
+            <EntityTypeSelector
+              procoreProject={trunkToolsProject}
+              connectorType="trunk_tools"
               onBack={() => setStep(3)}
               onNext={handleEntityTypesSelected}
             />
