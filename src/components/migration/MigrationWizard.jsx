@@ -3,6 +3,7 @@ import { X, ArrowRight, ArrowLeft, Upload, Database, History } from 'lucide-reac
 import CSVUploadModal from './CSVUploadModal';
 import ProcoreConnectionModal from './ProcoreConnectionModal';
 import TrunkToolsConnectionModal from './TrunkToolsConnectionModal';
+import ACCConnectionModal from './ACCConnectionModal';
 import ProcoreProjectSelector from './ProcoreProjectSelector';
 import EntityTypeSelector from './EntityTypeSelector';
 import MigrationProgress from './MigrationProgress';
@@ -25,12 +26,14 @@ const API_URL = 'https://buildpro-api.onrender.com/api/v1';
  */
 const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
   const [step, setStep] = useState(1);
-  const [sourceType, setSourceType] = useState(null); // 'csv', 'procore_api', or 'trunk_tools'
+  const [sourceType, setSourceType] = useState(null); // 'csv', 'procore_api', 'trunk_tools', or 'acc'
   const [sessionId, setSessionId] = useState(null);
   const [procoreConnection, setProcoreConnection] = useState(null);
   const [procoreProject, setProcoreProject] = useState(null);
   const [trunkToolsConnection, setTrunkToolsConnection] = useState(null);
   const [trunkToolsProject, setTrunkToolsProject] = useState(null);
+  const [accConnection, setAccConnection] = useState(null);
+  const [accProject, setAccProject] = useState(null);
   const [selectedEntityTypes, setSelectedEntityTypes] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -49,11 +52,18 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
     setStep(3); // Move to project selection
   };
 
+  const handleACCConnected = (connection) => {
+    setAccConnection(connection);
+    setStep(3); // Move to project selection
+  };
+
   const handleProjectSelected = (project) => {
     if (sourceType === 'procore_api') {
       setProcoreProject(project);
     } else if (sourceType === 'trunk_tools') {
       setTrunkToolsProject(project);
+    } else if (sourceType === 'acc') {
+      setAccProject(project);
     }
     setStep(4); // Move to entity type selection
   };
@@ -96,6 +106,22 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             options: options
           })
         });
+      } else if (sourceType === 'acc') {
+        // Start ACC migration
+        response = await fetch(`${API_URL}/migration/connectors/acc/start`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            connection_id: accConnection.id,
+            source_project_id: accProject.id,
+            entity_types: entityTypes,
+            options: options
+          })
+        });
       }
 
       if (!response.ok) {
@@ -134,7 +160,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
               {showHistory ? 'Migration History' : 'Import Data'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {showHistory ? 'View past migrations' : 'Import data from Procore, TrunkTools, or CSV/Excel files'}
+              {showHistory ? 'View past migrations' : 'Import data from Procore, TrunkTools, ACC/BIM 360, or CSV/Excel files'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -267,6 +293,33 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
                 </div>
               </button>
+
+              {/* ACC Option */}
+              <button
+                onClick={() => handleSourceSelect('acc')}
+                className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <Database className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
+                      Connect to ACC / BIM 360
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Direct integration with Autodesk Construction Cloud. Import Issues, RFIs, Submittals, and Documents.
+                    </p>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Secure OAuth 2.0 authorization</li>
+                      <li>• Compatible with ACC and BIM 360</li>
+                      <li>• Issues, RFIs, Submittals, Documents</li>
+                      <li>• Cost data and file management</li>
+                    </ul>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
+                </div>
+              </button>
             </div>
           )}
 
@@ -295,6 +348,14 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             />
           )}
 
+          {step === 2 && sourceType === 'acc' && (
+            <ACCConnectionModal
+              token={token}
+              onClose={() => setStep(1)}
+              onConnectionSaved={handleACCConnected}
+            />
+          )}
+
           {step === 3 && sourceType === 'procore_api' && procoreConnection && (
             <ProcoreProjectSelector
               token={token}
@@ -314,6 +375,16 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             />
           )}
 
+          {step === 3 && sourceType === 'acc' && accConnection && (
+            <ProcoreProjectSelector
+              token={token}
+              connection={accConnection}
+              connectorType="acc"
+              onBack={() => setStep(2)}
+              onSelectProject={handleProjectSelected}
+            />
+          )}
+
           {step === 4 && sourceType === 'procore_api' && procoreProject && (
             <EntityTypeSelector
               procoreProject={procoreProject}
@@ -326,6 +397,15 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
             <EntityTypeSelector
               procoreProject={trunkToolsProject}
               connectorType="trunk_tools"
+              onBack={() => setStep(3)}
+              onNext={handleEntityTypesSelected}
+            />
+          )}
+
+          {step === 4 && sourceType === 'acc' && accProject && (
+            <EntityTypeSelector
+              procoreProject={accProject}
+              connectorType="acc"
               onBack={() => setStep(3)}
               onNext={handleEntityTypesSelected}
             />
