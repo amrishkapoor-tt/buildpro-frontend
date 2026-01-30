@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, ArrowRight, ArrowLeft, Upload, Database } from 'lucide-react';
 import CSVUploadModal from './CSVUploadModal';
 import ProcoreConnectionModal from './ProcoreConnectionModal';
+import ProcoreProjectSelector from './ProcoreProjectSelector';
+import EntityTypeSelector from './EntityTypeSelector';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -9,12 +11,22 @@ const API_URL = 'https://buildpro-api.onrender.com/api/v1';
  * MigrationWizard
  *
  * Multi-step wizard for importing data from Procore or CSV/Excel files.
+ *
+ * Steps:
+ * 1. Choose source (CSV or Procore)
+ * 2a. CSV: Upload and map
+ * 2b. Procore: Connect account
+ * 3. Procore: Select project
+ * 4. Procore: Select entity types
+ * 5. Execute migration
  */
 const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
-  const [step, setStep] = useState(1); // 1: Choose source, 2: CSV upload or Procore connection
+  const [step, setStep] = useState(1);
   const [sourceType, setSourceType] = useState(null); // 'csv' or 'procore_api'
   const [sessionId, setSessionId] = useState(null);
   const [procoreConnection, setProcoreConnection] = useState(null);
+  const [procoreProject, setProcoreProject] = useState(null);
+  const [selectedEntityTypes, setSelectedEntityTypes] = useState([]);
 
   const handleSourceSelect = (type) => {
     setSourceType(type);
@@ -23,8 +35,18 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
 
   const handleProcoreConnected = (connection) => {
     setProcoreConnection(connection);
-    // TODO: Move to next step (project selection)
-    setStep(3);
+    setStep(3); // Move to project selection
+  };
+
+  const handleProjectSelected = (project) => {
+    setProcoreProject(project);
+    setStep(4); // Move to entity type selection
+  };
+
+  const handleEntityTypesSelected = async (entityTypes) => {
+    setSelectedEntityTypes(entityTypes);
+    // TODO: Start migration in Phase 4
+    alert(`Migration setup complete!\n\nProject: ${procoreProject.name}\nEntity Types: ${entityTypes.join(', ')}\n\nMigration execution will be implemented in Phase 4.`);
   };
 
   const handleCSVComplete = (session) => {
@@ -135,29 +157,20 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
           )}
 
           {step === 3 && sourceType === 'procore_api' && procoreConnection && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Procore Project Selection
-              </h3>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  Connected to: {procoreConnection.procore_company_name}
-                </p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">
-                  Procore project selection and data type selection will be implemented in Phase 2.
-                  For now, you can test the connection flow.
-                </p>
-              </div>
-              <button
-                onClick={() => setStep(1)}
-                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                <ArrowLeft className="w-4 h-4 inline mr-2" />
-                Back to Source Selection
-              </button>
-            </div>
+            <ProcoreProjectSelector
+              token={token}
+              connection={procoreConnection}
+              onBack={() => setStep(2)}
+              onSelectProject={handleProjectSelected}
+            />
+          )}
+
+          {step === 4 && sourceType === 'procore_api' && procoreProject && (
+            <EntityTypeSelector
+              procoreProject={procoreProject}
+              onBack={() => setStep(3)}
+              onNext={handleEntityTypesSelected}
+            />
           )}
         </div>
       </div>
