@@ -9,7 +9,7 @@ import {
   TrendingUp,
   DollarSign
 } from 'lucide-react';
-import { usePermissions } from '../contexts/PermissionContext';
+import { usePermissions } from '../../contexts/PermissionContext';
 import SafetyViolationDetail from './SafetyViolationDetail';
 import SafetyViolationForm from './SafetyViolationForm';
 
