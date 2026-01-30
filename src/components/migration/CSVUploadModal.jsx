@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, Download, Check, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import MigrationProgress from './MigrationProgress';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -17,6 +18,7 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
   const [parsedData, setParsedData] = useState(null);
   const [fieldMappings, setFieldMappings] = useState({});
   const [validation, setValidation] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -138,6 +140,40 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
       ...prev,
       [csvHeader]: buildProField
     }));
+  };
+
+  const handleImport = async () => {
+    setImporting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/migration/csv/${fileId}/import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          field_mappings: fieldMappings,
+          project_id: projectId,
+          options: {
+            skip_duplicates: false
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || 'Import failed');
+      }
+
+      const data = await response.json();
+      setSessionId(data.session.id);
+      setStep(5); // Show progress
+    } catch (error) {
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -359,13 +395,6 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
             </div>
           )}
 
-          <div className="bg-gray-50 rounded-lg p-4">
-            <p className="text-sm text-gray-600">
-              This is a preview. The actual import functionality will be completed in Phase 4.
-              For now, you can see validation results and download corrected data.
-            </p>
-          </div>
-
           <div className="flex gap-3">
             <button
               onClick={() => setStep(3)}
@@ -374,14 +403,31 @@ const CSVUploadModal = ({ projectId, token, onClose, onComplete }) => {
               <ArrowLeft className="w-4 h-4 inline mr-2" />
               Back to Mapping
             </button>
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Done
-            </button>
+            {validation.valid_rows > 0 && (
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {importing ? 'Starting Import...' : `Import ${validation.valid_rows} Row${validation.valid_rows !== 1 ? 's' : ''}`}
+              </button>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Step 5: Import Progress */}
+      {step === 5 && sessionId && (
+        <MigrationProgress
+          sessionId={sessionId}
+          token={token}
+          onComplete={(session) => {
+            if (onComplete) {
+              onComplete(session);
+            }
+          }}
+          onClose={onClose}
+        />
       )}
     </div>
   );
