@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, X, Sun, Cloud } from 'lucide-react';
+import { Calendar, Plus, X, Sun, Cloud, Lock } from 'lucide-react';
 import DailyLogDetail from './dailylogs/DailyLogDetail';
 import { usePermissions } from '../contexts/PermissionContext';
 
