@@ -4,6 +4,7 @@ import CSVUploadModal from './CSVUploadModal';
 import ProcoreConnectionModal from './ProcoreConnectionModal';
 import ProcoreProjectSelector from './ProcoreProjectSelector';
 import EntityTypeSelector from './EntityTypeSelector';
+import MigrationProgress from './MigrationProgress';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -43,10 +44,43 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
     setStep(4); // Move to entity type selection
   };
 
-  const handleEntityTypesSelected = async (entityTypes) => {
+  const handleEntityTypesSelected = async (entityTypes, options) => {
     setSelectedEntityTypes(entityTypes);
-    // TODO: Start migration in Phase 4
-    alert(`Migration setup complete!\n\nProject: ${procoreProject.name}\nEntity Types: ${entityTypes.join(', ')}\n\nMigration execution will be implemented in Phase 4.`);
+
+    try {
+      // Start migration
+      const response = await fetch(`${API_URL}/migration/procore/start`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          procore_connection_id: procoreConnection.id,
+          procore_project_id: procoreProject.id,
+          entity_types: entityTypes,
+          options: options
+        })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start migration');
+      }
+
+      const data = await response.json();
+      setSessionId(data.session.id);
+      setStep(5); // Show progress
+    } catch (error) {
+      alert(`Failed to start migration: ${error.message}`);
+    }
+  };
+
+  const handleMigrationComplete = (session) => {
+    if (onComplete) {
+      onComplete(session);
+    }
   };
 
   const handleCSVComplete = (session) => {
@@ -170,6 +204,15 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
               procoreProject={procoreProject}
               onBack={() => setStep(3)}
               onNext={handleEntityTypesSelected}
+            />
+          )}
+
+          {step === 5 && sessionId && (
+            <MigrationProgress
+              sessionId={sessionId}
+              token={token}
+              onComplete={handleMigrationComplete}
+              onClose={onClose}
             />
           )}
         </div>

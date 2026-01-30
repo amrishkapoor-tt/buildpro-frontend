@@ -9,6 +9,11 @@ import { FileText, Send, Wrench, FolderOpen, Image, Calendar, DollarSign, FileCh
  */
 const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
   const [selectedTypes, setSelectedTypes] = useState([]);
+  const [options, setOptions] = useState({
+    include_files: true,
+    preserve_relationships: true,
+    skip_duplicates: false
+  });
 
   const entityTypes = [
     {
@@ -95,7 +100,7 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
 
   const handleNext = () => {
     if (selectedTypes.length > 0 && onNext) {
-      onNext(selectedTypes);
+      onNext(selectedTypes, options);
     }
   };
 
@@ -201,7 +206,8 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
-              defaultChecked
+              checked={options.include_files}
+              onChange={(e) => setOptions({ ...options, include_files: e.target.checked })}
               className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <div>
@@ -212,7 +218,8 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
-              defaultChecked
+              checked={options.preserve_relationships}
+              onChange={(e) => setOptions({ ...options, preserve_relationships: e.target.checked })}
               className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <div>
@@ -223,6 +230,8 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
+              checked={options.skip_duplicates}
+              onChange={(e) => setOptions({ ...options, skip_duplicates: e.target.checked })}
               className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
             />
             <div>
