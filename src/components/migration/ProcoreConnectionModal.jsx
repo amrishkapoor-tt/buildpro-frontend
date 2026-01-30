@@ -26,9 +26,12 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [oauthConfigured, setOauthConfigured] = useState(null);
+  const [configError, setConfigError] = useState(null);
 
   useEffect(() => {
     loadConnections();
+    checkOAuthConfiguration();
 
     // Check if user just returned from OAuth flow
     const urlParams = new URLSearchParams(window.location.search);
@@ -48,6 +51,31 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
       window.history.replaceState({}, '', '/');
     }
   }, []);
+
+  const checkOAuthConfiguration = async () => {
+    try {
+      const response = await fetch(`${API_URL}/migration/procore/auth`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.status === 503) {
+        // OAuth not configured
+        const data = await response.json();
+        setOauthConfigured(false);
+        setConfigError(data.details || 'OAuth credentials not configured');
+      } else if (response.ok) {
+        setOauthConfigured(true);
+      } else {
+        setOauthConfigured(false);
+        setConfigError('Unable to check OAuth configuration');
+      }
+    } catch (error) {
+      console.error('Failed to check OAuth configuration:', error);
+      setOauthConfigured(false);
+      setConfigError('Unable to connect to server');
+    }
+  };
 
   const loadConnections = async () => {
     setLoading(true);
@@ -82,11 +110,14 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
         // Redirect user to Procore OAuth page
         // Procore will redirect back to: /api/v1/migration/procore/callback
         window.location.href = data.authorization_url;
+      } else if (response.status === 503) {
+        const data = await response.json();
+        throw new Error(data.details || 'OAuth not configured');
       } else {
         throw new Error('Failed to initiate OAuth flow');
       }
     } catch (error) {
-      alert(`Connection failed: ${error.message}\n\nNote: Procore OAuth credentials need to be configured in backend .env file (PROCORE_CLIENT_ID, PROCORE_CLIENT_SECRET, PROCORE_REDIRECT_URI)`);
+      alert(`Connection failed: ${error.message}`);
       setConnecting(false);
     }
   };
@@ -156,16 +187,55 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
         </div>
       )}
 
+      {/* OAuth Configuration Status */}
+      {oauthConfigured === false && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-5 h-5 text-red-700 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-red-800">
+              <p className="font-semibold mb-1">Procore Integration Not Configured</p>
+              <p className="mb-3">
+                An administrator needs to configure Procore OAuth credentials before users can connect their accounts.
+              </p>
+              <div className="bg-red-100 p-3 rounded text-xs space-y-2">
+                <p className="font-semibold">Administrator Setup Required:</p>
+                <ol className="list-decimal list-inside space-y-1 pl-2">
+                  <li>Register BuildPro as an app at <a href="https://developers.procore.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">developers.procore.com</a></li>
+                  <li>Set the OAuth redirect URI to:<br/>
+                    <code className="bg-red-200 px-1 py-0.5 rounded block mt-1 break-all">
+                      https://buildpro-api.onrender.com/api/v1/migration/procore/callback
+                    </code>
+                  </li>
+                  <li>Add credentials to backend environment variables on Render:
+                    <ul className="list-disc list-inside pl-4 mt-1">
+                      <li><code className="bg-red-200 px-1">PROCORE_CLIENT_ID</code></li>
+                      <li><code className="bg-red-200 px-1">PROCORE_CLIENT_SECRET</code></li>
+                      <li><code className="bg-red-200 px-1">PROCORE_REDIRECT_URI</code></li>
+                    </ul>
+                  </li>
+                  <li>Redeploy the backend service</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Connect New Account Button */}
       <button
         onClick={handleConnect}
-        disabled={connecting}
+        disabled={connecting || oauthConfigured === false}
         className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {connecting ? (
           <>
             <Loader className="w-5 h-5 animate-spin" />
             Connecting to Procore...
+          </>
+        ) : oauthConfigured === false ? (
+          <>
+            <AlertCircle className="w-5 h-5" />
+            OAuth Not Configured
           </>
         ) : (
           <>
@@ -174,25 +244,6 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
           </>
         )}
       </button>
-
-      {/* Setup Instructions (for developer) */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-yellow-800">
-            <p className="font-semibold mb-1">For Developer:</p>
-            <p className="mb-2">To enable Procore integration, add these to backend <code className="bg-yellow-100 px-1 rounded">.env</code>:</p>
-            <pre className="bg-yellow-100 p-2 rounded text-xs overflow-x-auto">
-{`PROCORE_CLIENT_ID=your_app_client_id
-PROCORE_CLIENT_SECRET=your_app_client_secret
-PROCORE_REDIRECT_URI=https://yourdomain.com/api/v1/migration/procore/callback`}
-            </pre>
-            <p className="mt-2 text-xs">
-              Register your app at <a href="https://developers.procore.com" target="_blank" rel="noopener noreferrer" className="underline">developers.procore.com</a>
-            </p>
-          </div>
-        </div>
-      </div>
 
       <button
         onClick={onClose}
