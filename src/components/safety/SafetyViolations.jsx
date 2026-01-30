@@ -161,7 +161,7 @@ const SafetyViolations = ({ projectId, token }) => {
             Track and manage safety violations, OSHA recordables, and corrective actions
           </p>
         </div>
-        {can('field_engineer') && (
+        {can('create_safety_violation') && (
           <button
             onClick={handleCreateNew}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -309,7 +309,7 @@ const SafetyViolations = ({ projectId, token }) => {
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <AlertTriangle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">No safety violations found</p>
-          {can('field_engineer') && (
+          {can('create_safety_violation') && (
             <button
               onClick={handleCreateNew}
               className="mt-4 text-blue-600 hover:text-blue-800"

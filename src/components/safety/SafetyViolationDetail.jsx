@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Trash2
 } from 'lucide-react';
+import { usePermissions } from '../../contexts/PermissionContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://buildpro-api.onrender.com/api/v1';
 
@@ -25,6 +26,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'https://buildpro-api.onrender.
  * - OSHA compliance info
  */
 const SafetyViolationDetail = ({ violation, token, projectId, onClose, onEdit }) => {
+  const { can } = usePermissions();
   const [currentViolation, setCurrentViolation] = useState(violation);
   const [updating, setUpdating] = useState(false);
 
@@ -272,19 +274,23 @@ const SafetyViolationDetail = ({ violation, token, projectId, onClose, onEdit })
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => onEdit(currentViolation)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 className="w-4 h-4 inline mr-2" />
-                Delete
-              </button>
+              {can('edit_safety_violation') && (
+                <button
+                  onClick={() => onEdit(currentViolation)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Edit
+                </button>
+              )}
+              {can('delete_safety_violation') && (
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 inline mr-2" />
+                  Delete
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

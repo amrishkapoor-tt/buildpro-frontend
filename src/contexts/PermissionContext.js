@@ -96,6 +96,10 @@ export const PermissionProvider = ({ children, projectId, token }) => {
       // Daily Logs
       'create_log': hasPermission('subcontractor'),
       'edit_log': hasPermission('engineer'),
+      // Safety
+      'create_safety_violation': hasPermission('engineer'),
+      'edit_safety_violation': hasPermission('engineer'),
+      'delete_safety_violation': hasPermission('superintendent'),
       // Punch List
       'create_punch': hasPermission('engineer'),
       'verify_punch': hasPermission('superintendent'),
