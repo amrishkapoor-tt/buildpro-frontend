@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ArrowRight, ArrowLeft, Upload, Database } from 'lucide-react';
 import CSVUploadModal from './CSVUploadModal';
+import ProcoreConnectionModal from './ProcoreConnectionModal';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -8,21 +9,22 @@ const API_URL = 'https://buildpro-api.onrender.com/api/v1';
  * MigrationWizard
  *
  * Multi-step wizard for importing data from Procore or CSV/Excel files.
- * Currently supports CSV import path (Procore requires OAuth credentials).
  */
 const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
-  const [step, setStep] = useState(1); // 1: Choose source, 2: CSV upload
+  const [step, setStep] = useState(1); // 1: Choose source, 2: CSV upload or Procore connection
   const [sourceType, setSourceType] = useState(null); // 'csv' or 'procore_api'
   const [sessionId, setSessionId] = useState(null);
+  const [procoreConnection, setProcoreConnection] = useState(null);
 
   const handleSourceSelect = (type) => {
-    if (type === 'procore_api') {
-      alert('Procore integration coming soon! OAuth credentials need to be configured.');
-      return;
-    }
-
     setSourceType(type);
     setStep(2);
+  };
+
+  const handleProcoreConnected = (connection) => {
+    setProcoreConnection(connection);
+    // TODO: Move to next step (project selection)
+    setStep(3);
   };
 
   const handleCSVComplete = (session) => {
@@ -86,11 +88,10 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                 </div>
               </button>
 
-              {/* Procore Option (Disabled until OAuth configured) */}
+              {/* Procore Option */}
               <button
                 onClick={() => handleSourceSelect('procore_api')}
-                className="w-full p-6 border-2 border-gray-200 rounded-lg opacity-50 cursor-not-allowed text-left"
-                disabled
+                className="w-full p-6 border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left"
               >
                 <div className="flex items-start gap-4">
                   <div className="p-3 bg-blue-100 rounded-lg">
@@ -99,9 +100,6 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                   <div className="flex-1">
                     <h4 className="text-lg font-semibold text-gray-900 mb-1">
                       Connect to Procore
-                      <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded">
-                        Coming Soon
-                      </span>
                     </h4>
                     <p className="text-sm text-gray-600 mb-2">
                       Direct integration with Procore API. Automatically pull projects, RFIs, submittals, documents, and more.
@@ -113,6 +111,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
                       <li>• Preview data before importing</li>
                     </ul>
                   </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 mt-6" />
                 </div>
               </button>
             </div>
@@ -125,6 +124,40 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
               onClose={() => setStep(1)}
               onComplete={handleCSVComplete}
             />
+          )}
+
+          {step === 2 && sourceType === 'procore_api' && (
+            <ProcoreConnectionModal
+              token={token}
+              onClose={() => setStep(1)}
+              onConnected={handleProcoreConnected}
+            />
+          )}
+
+          {step === 3 && sourceType === 'procore_api' && procoreConnection && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Procore Project Selection
+              </h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  Connected to: {procoreConnection.procore_company_name}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600">
+                  Procore project selection and data type selection will be implemented in Phase 2.
+                  For now, you can test the connection flow.
+                </p>
+              </div>
+              <button
+                onClick={() => setStep(1)}
+                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-4 h-4 inline mr-2" />
+                Back to Source Selection
+              </button>
+            </div>
           )}
         </div>
       </div>

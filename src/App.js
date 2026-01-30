@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity } from 'lucide-react';
+import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity, Upload } from 'lucide-react';
 
 // Import all module components
 import Documents from './components/Documents';
@@ -14,6 +14,7 @@ import Financials from './components/Financials';
 import Schedule from './components/Schedule';
 import Dashboard from './components/Dashboard';
 import WorkflowsPage from './components/workflows/WorkflowsPage';
+import MigrationWizard from './components/migration/MigrationWizard';
 import { PermissionProvider } from './contexts/PermissionContext';
 
 // IMPORTANT: Update this to your Render backend URL
@@ -32,6 +33,7 @@ const FreeCoreProduction = () => {
   const [showLogin, setShowLogin] = useState(!token);
   const [showRegister, setShowRegister] = useState(false);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showMigrationWizard, setShowMigrationWizard] = useState(false);
   
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({
@@ -443,12 +445,19 @@ const FreeCoreProduction = () => {
                       <option key={project.id} value={project.id}>{project.name}</option>
                     ))}
                   </select>
-                  <button 
+                  <button
                     onClick={() => setShowNewProject(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     <Plus className="w-5 h-5" />
                     New Project
+                  </button>
+                  <button
+                    onClick={() => setShowMigrationWizard(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Upload className="w-5 h-5" />
+                    Import Data
                   </button>
                 </div>
               )}
@@ -575,6 +584,20 @@ const FreeCoreProduction = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Migration Wizard Modal */}
+      {showMigrationWizard && selectedProject && (
+        <MigrationWizard
+          projectId={selectedProject.id}
+          token={token}
+          onClose={() => setShowMigrationWizard(false)}
+          onComplete={(session) => {
+            console.log('Migration completed:', session);
+            setShowMigrationWizard(false);
+            // Optionally reload data
+          }}
+        />
       )}
     </div>
   );
