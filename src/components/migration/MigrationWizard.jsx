@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, Upload, Database } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Upload, Database, History } from 'lucide-react';
 import CSVUploadModal from './CSVUploadModal';
 import ProcoreConnectionModal from './ProcoreConnectionModal';
 import ProcoreProjectSelector from './ProcoreProjectSelector';
 import EntityTypeSelector from './EntityTypeSelector';
 import MigrationProgress from './MigrationProgress';
+import MigrationHistory from './MigrationHistory';
 
 const API_URL = 'https://buildpro-api.onrender.com/api/v1';
 
@@ -28,6 +29,7 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
   const [procoreConnection, setProcoreConnection] = useState(null);
   const [procoreProject, setProcoreProject] = useState(null);
   const [selectedEntityTypes, setSelectedEntityTypes] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleSourceSelect = (type) => {
     setSourceType(type);
@@ -96,22 +98,58 @@ const MigrationWizard = ({ projectId, token, onClose, onComplete }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Import Data</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {showHistory ? 'Migration History' : 'Import Data'}
+            </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Import data from Procore or CSV/Excel files
+              {showHistory ? 'View past migrations' : 'Import data from Procore or CSV/Excel files'}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            {!showHistory && step === 1 && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 flex items-center gap-2"
+                title="View Migration History"
+              >
+                <History className="w-5 h-5" />
+                <span className="text-sm">History</span>
+              </button>
+            )}
+            {showHistory && (
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-2 text-blue-600 hover:text-blue-700 rounded-lg hover:bg-blue-50 flex items-center gap-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="text-sm">Back to Import</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="p-6">
-          {step === 1 && (
+          {/* Migration History View */}
+          {showHistory && (
+            <MigrationHistory
+              projectId={projectId}
+              token={token}
+              onViewDetails={(id) => {
+                setSessionId(id);
+                setStep(5);
+                setShowHistory(false);
+              }}
+            />
+          )}
+
+          {!showHistory && step === 1 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Choose Data Source

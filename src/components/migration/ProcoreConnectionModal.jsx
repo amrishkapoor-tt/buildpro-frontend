@@ -136,8 +136,19 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
   };
 
   const handleManualConnect = async () => {
+    // Validation
     if (!manualForm.access_token || !manualForm.company_id) {
       alert('Please provide both access token and company ID');
+      return;
+    }
+
+    if (manualForm.access_token.length < 20) {
+      alert('Access token appears to be invalid (too short). Please check your Procore API token.');
+      return;
+    }
+
+    if (!/^\d+$/.test(manualForm.company_id)) {
+      alert('Company ID must be a numeric value. Please check your Procore company ID.');
       return;
     }
 
@@ -158,12 +169,24 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
       }
 
       const data = await response.json();
-      alert('Connection saved successfully!');
+      alert('✅ Connection saved successfully! You can now select this connection to import data.');
       setShowManualEntry(false);
       setManualForm({ access_token: '', company_id: '', company_name: '' });
       loadConnections();
     } catch (error) {
-      alert(`Failed to save connection: ${error.message}`);
+      let errorMessage = 'Failed to save connection';
+
+      if (error.message.includes('401') || error.message.includes('Invalid')) {
+        errorMessage = 'Invalid Procore credentials. Please check your API token and company ID and try again.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Request timed out. Procore API may be slow. Please try again.';
+      } else {
+        errorMessage = `Connection failed: ${error.message}`;
+      }
+
+      alert(errorMessage);
     } finally {
       setConnecting(false);
     }
