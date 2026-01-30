@@ -28,6 +28,12 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
   const [connecting, setConnecting] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(null);
   const [configError, setConfigError] = useState(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    access_token: '',
+    company_id: '',
+    company_name: ''
+  });
 
   useEffect(() => {
     loadConnections();
@@ -129,6 +135,40 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
     onClose();
   };
 
+  const handleManualConnect = async () => {
+    if (!manualForm.access_token || !manualForm.company_id) {
+      alert('Please provide both access token and company ID');
+      return;
+    }
+
+    setConnecting(true);
+    try {
+      const response = await fetch(`${API_URL}/migration/procore/connections/manual`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(manualForm)
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save connection');
+      }
+
+      const data = await response.json();
+      alert('Connection saved successfully!');
+      setShowManualEntry(false);
+      setManualForm({ access_token: '', company_id: '', company_name: '' });
+      loadConnections();
+    } catch (error) {
+      alert(`Failed to save connection: ${error.message}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -187,63 +227,128 @@ const ProcoreConnectionModal = ({ token, onClose, onConnected }) => {
         </div>
       )}
 
-      {/* OAuth Configuration Status */}
-      {oauthConfigured === false && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-red-700 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-red-800">
-              <p className="font-semibold mb-1">Procore Integration Not Configured</p>
-              <p className="mb-3">
-                An administrator needs to configure Procore OAuth credentials before users can connect their accounts.
+      {/* Manual Token Entry Form */}
+      {showManualEntry ? (
+        <div className="space-y-4 border border-gray-300 rounded-lg p-4 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-gray-900">Enter Procore API Credentials</h4>
+            <button
+              onClick={() => setShowManualEntry(false)}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Access Token *
+              </label>
+              <input
+                type="password"
+                value={manualForm.access_token}
+                onChange={(e) => setManualForm({ ...manualForm, access_token: e.target.value })}
+                placeholder="Enter your Procore API access token"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Get this from your Procore account settings or API documentation
               </p>
-              <div className="bg-red-100 p-3 rounded text-xs space-y-2">
-                <p className="font-semibold">Administrator Setup Required:</p>
-                <ol className="list-decimal list-inside space-y-1 pl-2">
-                  <li>Register BuildPro as an app at <a href="https://developers.procore.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">developers.procore.com</a></li>
-                  <li>Set the OAuth redirect URI to:<br/>
-                    <code className="bg-red-200 px-1 py-0.5 rounded block mt-1 break-all">
-                      https://buildpro-api.onrender.com/api/v1/migration/procore/callback
-                    </code>
-                  </li>
-                  <li>Add credentials to backend environment variables on Render:
-                    <ul className="list-disc list-inside pl-4 mt-1">
-                      <li><code className="bg-red-200 px-1">PROCORE_CLIENT_ID</code></li>
-                      <li><code className="bg-red-200 px-1">PROCORE_CLIENT_SECRET</code></li>
-                      <li><code className="bg-red-200 px-1">PROCORE_REDIRECT_URI</code></li>
-                    </ul>
-                  </li>
-                  <li>Redeploy the backend service</li>
-                </ol>
-              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company ID *
+              </label>
+              <input
+                type="text"
+                value={manualForm.company_id}
+                onChange={(e) => setManualForm({ ...manualForm, company_id: e.target.value })}
+                placeholder="e.g., 12345"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Your Procore company ID (numeric)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Company Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={manualForm.company_name}
+                onChange={(e) => setManualForm({ ...manualForm, company_name: e.target.value })}
+                placeholder="e.g., Acme Construction"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Connect New Account Button */}
-      <button
-        onClick={handleConnect}
-        disabled={connecting || oauthConfigured === false}
-        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        {connecting ? (
-          <>
-            <Loader className="w-5 h-5 animate-spin" />
-            Connecting to Procore...
-          </>
-        ) : oauthConfigured === false ? (
-          <>
-            <AlertCircle className="w-5 h-5" />
-            OAuth Not Configured
-          </>
-        ) : (
-          <>
+          <button
+            onClick={handleManualConnect}
+            disabled={connecting || !manualForm.access_token || !manualForm.company_id}
+            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {connecting ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Check className="w-5 h-5" />
+                Save Connection
+              </>
+            )}
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Primary Option: Manual Token Entry */}
+          <button
+            onClick={() => setShowManualEntry(true)}
+            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+          >
             <ExternalLink className="w-5 h-5" />
-            Connect New Procore Account
-          </>
-        )}
-      </button>
+            Add Procore API Token
+          </button>
+
+          {/* Alternative Option: OAuth (if configured) */}
+          {oauthConfigured === true && (
+            <div className="space-y-2">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="w-full px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {connecting ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Connecting via OAuth...
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-5 h-5" />
+                    Connect via OAuth
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       <button
         onClick={onClose}
