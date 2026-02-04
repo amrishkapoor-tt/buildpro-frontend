@@ -9,11 +9,29 @@ const API_URL = 'https://buildpro-api.onrender.com/api/v1';
  * Shows list of Procore projects from connected account.
  * User selects which Procore project to import data from.
  */
-const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) => {
+const ProcoreProjectSelector = ({ token, connection, connectorType = 'procore_api', onBack, onSelectProject }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+
+  // Determine endpoint based on connector type
+  const getProjectsEndpoint = () => {
+    if (connectorType === 'trunk_tools' || connectorType === 'acc') {
+      return `${API_URL}/migration/connectors/${connectorType}/projects?connection_id=${connection.id}`;
+    }
+    return `${API_URL}/migration/procore/projects?connection_id=${connection.id}`;
+  };
+
+  // Determine display name based on connector type
+  const getConnectorName = () => {
+    const names = {
+      'procore_api': 'Procore',
+      'trunk_tools': 'TrunkTools',
+      'acc': 'ACC/BIM360'
+    };
+    return names[connectorType] || 'External System';
+  };
 
   useEffect(() => {
     loadProjects();
@@ -24,17 +42,14 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_URL}/migration/procore/projects?connection_id=${connection.id}`,
-        {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }
-      );
+      const response = await fetch(getProjectsEndpoint(), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
 
       if (response.status === 401) {
         const data = await response.json();
         if (data.needs_refresh) {
-          setError('Your Procore connection has expired. Please refresh your token.');
+          setError(`Your ${getConnectorName()} connection has expired. Please refresh your token.`);
           return;
         }
       }
@@ -47,7 +62,7 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
       const data = await response.json();
       setProjects(data.projects || []);
     } catch (err) {
-      console.error('Failed to load Procore projects:', err);
+      console.error(`Failed to load ${getConnectorName()} projects:`, err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -86,17 +101,17 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Select Procore Project
+          Select {getConnectorName()} Project
         </h3>
         <p className="text-sm text-gray-600">
-          Choose which Procore project to import data from.
+          Choose which {getConnectorName()} project to import data from.
         </p>
       </div>
 
       {/* Connection Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Connected to:</strong> {connection.procore_company_name}
+          <strong>Connected to:</strong> {connection.display_name || connection.procore_company_name || getConnectorName()}
         </p>
       </div>
 
@@ -126,7 +141,7 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600">Loading Procore projects...</p>
+            <p className="text-sm text-gray-600">Loading {getConnectorName()} projects...</p>
           </div>
         </div>
       )}
@@ -187,7 +202,7 @@ const ProcoreProjectSelector = ({ token, connection, onBack, onSelectProject }) 
       {!loading && !error && projects.length === 0 && (
         <div className="text-center py-12">
           <Building2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600">No projects found in this Procore account.</p>
+          <p className="text-gray-600">No projects found in this {getConnectorName()} account.</p>
         </div>
       )}
 
