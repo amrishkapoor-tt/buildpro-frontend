@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity, Upload, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Building2, LayoutDashboard, FolderOpen, FileText, Users, Camera, Send, Wrench, Calendar, DollarSign, Layers, Plus, LogOut, Bell, X, BarChart3, Activity, Upload, AlertTriangle, TrendingUp, User, BookOpen, FileSignature } from 'lucide-react';
 
 // Import all module components
 import Documents from './components/Documents';
@@ -18,6 +18,10 @@ import MigrationWizard from './components/migration/MigrationWizard';
 import SafetyViolations from './components/safety/SafetyViolations';
 import SafetyDashboard from './components/safety/SafetyDashboard';
 import Reports from './components/reports/Reports';
+import Contacts from './components/Contacts';
+import PrimeContracts from './components/PrimeContracts';
+import SpecificationSections from './components/SpecificationSections';
+import Companies from './components/Companies';
 import { PermissionProvider } from './contexts/PermissionContext';
 
 // IMPORTANT: Update this to your Render backend URL
@@ -394,13 +398,17 @@ const FreeCoreProduction = () => {
               { id: 'photos', icon: Camera, label: 'Photos' },
               { id: 'rfis', icon: FileText, label: 'RFIs' },
               { id: 'submittals', icon: Send, label: 'Submittals' },
+              { id: 'specifications', icon: BookOpen, label: 'Specifications' },
               { id: 'workflows', icon: Activity, label: 'Workflows', badge: workflowTaskCount },
               { id: 'dailylogs', icon: Calendar, label: 'Daily Logs' },
               { id: 'safety', icon: AlertTriangle, label: 'Safety' },
               { id: 'safety-dashboard', icon: TrendingUp, label: 'Safety Analytics' },
               { id: 'reports', icon: FileText, label: 'Reports' },
               { id: 'punch', icon: Wrench, label: 'Punch List' },
+              { id: 'prime-contracts', icon: FileSignature, label: 'Prime Contracts' },
               { id: 'financials', icon: DollarSign, label: 'Financials' },
+              { id: 'contacts', icon: User, label: 'Contacts' },
+              { id: 'companies', icon: Building2, label: 'Companies' },
               { id: 'team', icon: Users, label: 'Team' }
             ].map(({ id, icon: Icon, label, badge }) => (
               <button
@@ -509,6 +517,10 @@ const FreeCoreProduction = () => {
                   {currentView === 'punch' && <PunchList projectId={selectedProject.id} token={token} />}
                   {currentView === 'financials' && <Financials projectId={selectedProject.id} token={token} />}
                   {currentView === 'schedule' && <Schedule projectId={selectedProject.id} token={token} />}
+                  {currentView === 'contacts' && <Contacts projectId={selectedProject.id} token={token} />}
+                  {currentView === 'companies' && <Companies projectId={selectedProject.id} token={token} />}
+                  {currentView === 'prime-contracts' && <PrimeContracts projectId={selectedProject.id} token={token} />}
+                  {currentView === 'specifications' && <SpecificationSections projectId={selectedProject.id} token={token} />}
                 </PermissionProvider>
               )}
             </>
