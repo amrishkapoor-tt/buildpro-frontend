@@ -7,7 +7,7 @@ import { FileText, Send, Wrench, FolderOpen, Image, Calendar, DollarSign, FileCh
  * Allows user to select which entity types to import from Procore.
  * Supports multiple selections with estimated counts.
  */
-const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
+const EntityTypeSelector = ({ procoreProject, connectorType = 'procore_api', onBack, onNext }) => {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [options, setOptions] = useState({
     include_files: true,
@@ -15,7 +15,47 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
     skip_duplicates: false
   });
 
-  const entityTypes = [
+  // Define entity types based on connector
+  const getEntityTypes = () => {
+    if (connectorType === 'trunk_tools') {
+      return [
+        {
+          id: 'daily_logs',
+          name: 'Daily Logs',
+          description: 'Daily construction logs with weather, manpower, equipment, and notes',
+          icon: Calendar,
+          color: 'teal',
+          available: true
+        },
+        {
+          id: 'safety_violations',
+          name: 'Safety Violations',
+          description: 'Safety violations, OSHA recordables, and corrective actions',
+          icon: FileText,
+          color: 'orange',
+          available: true
+        },
+        {
+          id: 'companies',
+          name: 'Companies',
+          description: 'Subcontractors and vendors',
+          icon: FolderOpen,
+          color: 'purple',
+          available: true
+        },
+        {
+          id: 'contacts',
+          name: 'Contacts',
+          description: 'Contact information for project participants',
+          icon: FileText,
+          color: 'blue',
+          available: true
+        }
+      ];
+    }
+
+    // Default Procore entity types
+    return [
     {
       id: 'rfis',
       name: 'RFIs',
@@ -89,6 +129,9 @@ const EntityTypeSelector = ({ procoreProject, onBack, onNext }) => {
       available: false // Phase 4+
     }
   ];
+  };
+
+  const entityTypes = getEntityTypes();
 
   const toggleType = (typeId) => {
     if (selectedTypes.includes(typeId)) {
