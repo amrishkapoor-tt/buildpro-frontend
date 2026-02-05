@@ -20,19 +20,59 @@ const EntityTypeSelector = ({ procoreProject, connectorType = 'procore_api', onB
     if (connectorType === 'trunk_tools') {
       return [
         {
+          id: 'rfis',
+          name: 'RFIs',
+          description: 'Requests for Information with questions and responses',
+          icon: FileText,
+          color: 'blue',
+          available: true
+        },
+        {
+          id: 'submittals',
+          name: 'Submittals',
+          description: 'Submittal packages with review workflows',
+          icon: Send,
+          color: 'green',
+          available: true
+        },
+        {
+          id: 'drawings',
+          name: 'Drawings',
+          description: 'Project drawings and sheets',
+          icon: FileCheck,
+          color: 'indigo',
+          available: true
+        },
+        {
+          id: 'drawing_sets',
+          name: 'Drawing Sets',
+          description: 'Collections of related drawings',
+          icon: FolderOpen,
+          color: 'purple',
+          available: true
+        },
+        {
+          id: 'files',
+          name: 'Files',
+          description: 'Project documents and files',
+          icon: FileText,
+          color: 'gray',
+          available: true
+        },
+        {
+          id: 'folders',
+          name: 'Folders',
+          description: 'Document folder structure',
+          icon: FolderOpen,
+          color: 'yellow',
+          available: true
+        },
+        {
           id: 'daily_logs',
           name: 'Daily Logs',
           description: 'Daily construction logs with weather, manpower, equipment, and notes',
           icon: Calendar,
           color: 'teal',
-          available: true
-        },
-        {
-          id: 'safety_violations',
-          name: 'Safety Violations',
-          description: 'Safety violations, OSHA recordables, and corrective actions',
-          icon: FileText,
-          color: 'orange',
           available: true
         },
         {
@@ -48,7 +88,23 @@ const EntityTypeSelector = ({ procoreProject, connectorType = 'procore_api', onB
           name: 'Contacts',
           description: 'Contact information for project participants',
           icon: FileText,
-          color: 'blue',
+          color: 'cyan',
+          available: true
+        },
+        {
+          id: 'prime_contracts',
+          name: 'Prime Contracts',
+          description: 'Main contract information and change orders',
+          icon: DollarSign,
+          color: 'green',
+          available: true
+        },
+        {
+          id: 'specification_sections',
+          name: 'Specification Sections',
+          description: 'Project specifications organized by CSI division',
+          icon: FileText,
+          color: 'orange',
           available: true
         }
       ];
