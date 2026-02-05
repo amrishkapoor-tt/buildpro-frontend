@@ -74,9 +74,13 @@ const MigrationHistory = ({ projectId, token, onViewDetails }) => {
     const types = {
       'procore_api': 'Procore API',
       'csv': 'CSV Import',
-      'excel': 'Excel Import'
+      'excel': 'Excel Import',
+      'connector_trunk_tools': 'TrunkTools',
+      'connector_acc': 'ACC/BIM360',
+      'connector_fieldwire': 'Fieldwire',
+      'connector_plangrid': 'PlanGrid'
     };
-    return types[type] || type;
+    return types[type] || type.replace('connector_', '').replace(/_/g, ' ');
   };
 
   const formatEntityTypes = (types) => {

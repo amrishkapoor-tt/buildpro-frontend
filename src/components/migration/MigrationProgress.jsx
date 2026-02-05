@@ -411,7 +411,15 @@ const MigrationProgress = ({ sessionId, token, onComplete, onClose }) => {
       {isRunning && session.total_entities === 0 && (
         <div className="text-center py-6">
           <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-600">Fetching data from Procore...</p>
+          <p className="text-sm text-gray-600">
+            Fetching data from {
+              session.source_type === 'connector_trunk_tools' ? 'TrunkTools' :
+              session.source_type === 'connector_acc' ? 'ACC/BIM360' :
+              session.source_type === 'procore_api' ? 'Procore' :
+              session.source_type === 'csv' ? 'CSV file' :
+              'external system'
+            }...
+          </p>
         </div>
       )}
     </div>
